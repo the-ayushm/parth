@@ -93,9 +93,16 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             loading: false,
           });
-        } catch (error) {
-          // Token invalid, clear state
-          get().logout();
+        } catch (error: any) {
+          // Only logout on genuine 401 Unauthorized.
+          // Network errors (CORS, timeout, offline) should NOT log the user out.
+          const status = error?.response?.status;
+          if (status === 401) {
+            get().logout();
+          } else {
+            // Network/server error — keep the user logged in, just clear loading
+            set({ isLoading: false, loading: false });
+          }
         }
       },
     }),

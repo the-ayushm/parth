@@ -4,6 +4,15 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true
   },
+  async rewrites() {
+    const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || '';
+    return [
+      {
+        source: '/api/backend/:path*',
+        destination: `${backendUrl}/:path*`,
+      },
+    ];
+  },
   redirects: async () => {
     return [
       {

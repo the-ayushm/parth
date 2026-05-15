@@ -12,6 +12,7 @@ import {
   Building2,
   Smartphone,
   MessageSquare,
+  Inbox,
   Webhook,
   Users,
   Send,
@@ -46,8 +47,16 @@ export default function DashboardLayout({
   const isCompanyUser = user?.role === 'company';
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    // Only re-verify with the server if not already authenticated.
+    // Persisted Zustand state from localStorage is trusted on first render.
+    if (!isAuthenticated) {
+      checkAuth();
+    } else {
+      // Already authenticated — make sure isLoading is cleared
+      useAuthStore.setState({ isLoading: false, loading: false });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);  // Run only once on mount — not reactive to isAuthenticated changes
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -276,6 +285,20 @@ export default function DashboardLayout({
               >
                 <Send className="h-5 w-5" />
                 <span>Campaigns</span>
+              </Link>
+
+              <Link
+                href="/inbox"
+                onClick={() => setSidebarOpen(false)}
+                className={clsx(
+                  'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
+                  isActive('/inbox')
+                    ? 'bg-primary-50 text-primary-600 font-medium'
+                    : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
+                )}
+              >
+                <Inbox className="h-5 w-5" />
+                <span>Inbox</span>
               </Link>
             </>
           )}
