@@ -25,7 +25,8 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { inboxAxiosInstance } from '@/lib/inboxAxiosInstance';
-import './inbox.css';
+import api from '@/lib/api';
+import "./inbox.css"
 
 // ─── API Types ────────────────────────────────────────────────────────────────
 
@@ -177,6 +178,10 @@ export default function InboxPage() {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [filterValid, setFilterValid] = useState<'all' | 'valid' | 'invalid'>('all');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 20;
 
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -188,13 +193,13 @@ export default function InboxPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const FILTERS = ['All', 'Unread', 'Lead', 'Customer', 'Support'];
+  // const FILTERS = ['All', 'Unread', 'Lead', 'Customer', 'Support'];
 
   // ── 1. Fetch phone numbers ───────────────────────────────────────────────
   const fetchPhoneNumbers = useCallback(async () => {
     setPhoneLoading(true);
     try {
-      const res = await inboxAxiosInstance.get('/admin/waba/phone-numbers');
+      const res = await api.get('/admin/waba/phone-numbers');
       const data: PhoneNumber[] = res.data?.data || res.data || [];
       setPhoneNumbers(data);
       if (data.length > 0 && !selectedPhoneId) {
@@ -217,7 +222,12 @@ export default function InboxPage() {
     setContactsLoading(true);
     setConversations([]);
     try {
-      const res = await inboxAxiosInstance.get('/admin/contacts', {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (filterValid !== 'all') params.append('is_valid', filterValid === 'valid' ? 'true' : 'false');
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      const res = await api.get('/admin/contacts', {
         params: { page: 1, limit: 50 },
       });
       const raw: ApiContact[] = res.data?.data || res.data?.contacts || res.data || [];
@@ -233,6 +243,7 @@ export default function InboxPage() {
     fetchContacts();
   }, [fetchContacts]);
 
+
   // ── 3. Fetch messages when a conversation is selected ───────────────────
   const fetchMessages = useCallback(
     async (conv: Conversation) => {
@@ -240,13 +251,12 @@ export default function InboxPage() {
       setMessagesLoading(true);
       setMessages([]);
       try {
+        const params = new URLSearchParams();
         const leadNumber = conv.phone.replace(/\D/g, ''); // strip non-digits
-        const res = await inboxAxiosInstance.get('/admin/messages/lead/conversations', {
-          params: {
-            phone_number_id: selectedPhoneId,
-            leadNumber,
-          },
-        });
+        params.append('phone_number_id', selectedPhoneId);
+        params.append('leadNumber', leadNumber);
+
+        const res = await api.get(`/admin/messages/lead/conversations?${params.toString()}`);
         const raw: ApiMessage[] = res.data?.data || res.data?.messages || res.data || [];
         setMessages(raw.map((m) => mapMessage(m, conv.id)));
       } catch (err) {
@@ -313,11 +323,19 @@ export default function InboxPage() {
       ),
     );
 
+    // { "messaging_product": "whatsapp", "phone_number_id": "762352490286897", "to": "919372597458", "recipient_type": "individual", "type": "text", "text": { "body": "hii" } }
+
     try {
-      await inboxAxiosInstance.post('/admin/messages/send', {
-        phone_number_id: selectedPhoneId,
-        leadNumber: selectedConversation.phone.replace(/\D/g, ''),
-        message: text,
+      await api.post('/admin/messages/send', {
+        messaging_product: "whatsapp",
+        phone_number_id: "1096146070249853",
+        // to: selectedConversation.phone.replace(/\D/g, ''),
+        to: "919372597458",
+        recipient_type: "individual",
+        type: "text",
+        text: {
+          body: text
+        }
       });
       setMessages((prev) => prev.map((m) => (m.id === optimistic.id ? { ...m, status: 'delivered' } : m)));
     } catch {
@@ -444,7 +462,7 @@ export default function InboxPage() {
         </div>
 
         {/* filter chips */}
-        <div className="inbox-filter-chips">
+        {/* <div className="inbox-filter-chips">
           {FILTERS.map((f) => (
             <button
               key={f}
@@ -454,7 +472,7 @@ export default function InboxPage() {
               {f}
             </button>
           ))}
-        </div>
+        </div> */}
 
         {/* list */}
         <div className="inbox-contact-list">

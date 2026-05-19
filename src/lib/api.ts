@@ -17,7 +17,7 @@ import type {
   PaginatedResponse,
 } from '@/types';
 
-const API_URL = '/api/backend';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 
 class APIClient {
@@ -397,6 +397,10 @@ class APIClient {
     const response = await this.client.delete<T>(url, config);
     return response.data;
   }
+
+
+  // Inbox API
+  // async get(phone)
 }
 
 export const api = new APIClient();

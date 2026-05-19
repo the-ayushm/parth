@@ -41,16 +41,16 @@ export default function ContactsPage() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    
+
     // Check for import job ID in URL or localStorage
     const jobIdFromUrl = searchParams.get('jobId');
     const jobIdFromStorage = typeof window !== 'undefined' ? localStorage.getItem('activeImportJob') : null;
     const activeJobId = jobIdFromUrl || jobIdFromStorage;
-    
+
     if (activeJobId) {
       setImportJobId(activeJobId);
     }
-    
+
     fetchContacts();
     return () => {
       isMountedRef.current = false;
@@ -107,7 +107,7 @@ export default function ContactsPage() {
             }
             // Hide progress bar immediately
             setImportJobId(null);
-            
+
             // Clear success message after 8 seconds
             setTimeout(() => {
               if (isMountedRef.current) {
@@ -207,7 +207,7 @@ export default function ContactsPage() {
           <p className="font-medium text-gray-900">{row.name || 'No Name'}</p>
           <p className="text-sm text-gray-500">{row.phone_number}</p>
         </div>
-      ), 
+      ),
     },
     {
       key: 'phone_column',
@@ -367,14 +367,14 @@ export default function ContactsPage() {
 
       {/* Import Success Message */}
       {showImportSuccess && (
-        <Alert 
-          variant="success" 
-          message={`Successfully imported ${importedCount} contacts!`} 
+        <Alert
+          variant="success"
+          message={`Successfully imported ${importedCount} contacts!`}
           onClose={() => {
             setShowImportSuccess(false);
             setImportStatus(null);
             setImportedCount(0);
-          }} 
+          }}
         />
       )}
 

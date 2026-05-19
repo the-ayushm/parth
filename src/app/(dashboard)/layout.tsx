@@ -21,6 +21,8 @@ import {
   Briefcase,
   Menu,
   X,
+  Contact,
+  PhoneIcon
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
@@ -36,6 +38,9 @@ export default function DashboardLayout({
   const [balance, setBalance] = useState<number>(0);
   const [loadingBalance, setLoadingBalance] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+
+  console.log("Users", user)
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -55,7 +60,7 @@ export default function DashboardLayout({
       // Already authenticated — make sure isLoading is cleared
       useAuthStore.setState({ isLoading: false, loading: false });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);  // Run only once on mount — not reactive to isAuthenticated changes
 
   useEffect(() => {
@@ -158,36 +163,36 @@ export default function DashboardLayout({
           </Link>
 
           <Link
-            href="/credits"
+            href="/inbox"
             onClick={() => setSidebarOpen(false)}
             className={clsx(
               'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
-              isActive('/credits')
+              isActive('/inbox')
                 ? 'bg-primary-50 text-primary-600 font-medium'
                 : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
             )}
           >
             <Wallet className="h-5 w-5" />
-            <span>Credits</span>
+            <span>Inbox</span>
           </Link>
 
-          {(user?.role === 'admin' || user?.role === 'superadmin') && (
-            <Link
-              href="/companies"
-              onClick={() => setSidebarOpen(false)}
-              className={clsx(
-                'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
-                isActive('/companies')
-                  ? 'bg-primary-50 text-primary-600 font-medium'
-                  : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
-              )}
-            >
-              <Building2 className="h-5 w-5" />
-              <span>Companies</span>
-            </Link>
-          )}
 
-          {isCompanyUser && (
+          {/* 
+          <Link
+            href="/contacts"
+            onClick={() => setSidebarOpen(false)}
+            className={clsx(
+              'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
+              isActive('/contacts')
+                ? 'bg-primary-50 text-primary-600 font-medium'
+                : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
+            )}
+          >
+            <Users className="h-5 w-5" />
+            <span>Contacts</span>
+          </Link> */}
+
+          {(user?.role === 'admin' || user?.role === 'superadmin') && (
             <>
               <Link
                 href="/waba"
@@ -218,18 +223,52 @@ export default function DashboardLayout({
               </Link>
 
               <Link
-                href="/templates"
+                href="/contacts"
                 onClick={() => setSidebarOpen(false)}
                 className={clsx(
                   'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
-                  isActive('/templates')
+                  isActive('/contacts')
                     ? 'bg-primary-50 text-primary-600 font-medium'
                     : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
                 )}
               >
-                <MessageSquare className="h-5 w-5" />
-                <span>Templates</span>
+                <Users className="h-5 w-5" />
+                <span>Contacts</span>
               </Link>
+
+
+              <Link
+                href="/user"
+                onClick={() => setSidebarOpen(false)}
+                className={clsx(
+                  'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
+                  isActive('/jobs')
+                    ? 'bg-primary-50 text-primary-600 font-medium'
+                    : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
+                )}
+              >
+                <Briefcase className="h-5 w-5" />
+                <span>User</span>
+              </Link>
+
+
+              <Link
+                href="/credits"
+                onClick={() => setSidebarOpen(false)}
+                className={clsx(
+                  'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
+                  isActive('/credits')
+                    ? 'bg-primary-50 text-primary-600 font-medium'
+                    : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
+                )}
+              >
+                <Wallet className="h-5 w-5" />
+                <span>Credits</span>
+              </Link>
+
+
+
+
 
               <Link
                 href="/webhooks"
@@ -245,20 +284,28 @@ export default function DashboardLayout({
                 <span>Webhooks</span>
               </Link>
 
-              <Link
-                href="/contacts"
-                onClick={() => setSidebarOpen(false)}
-                className={clsx(
-                  'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
-                  isActive('/contacts')
-                    ? 'bg-primary-50 text-primary-600 font-medium'
-                    : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
-                )}
-              >
-                <Users className="h-5 w-5" />
-                <span>Contacts</span>
-              </Link>
 
+            </>
+          )}
+
+
+          <Link
+            href="/templates"
+            onClick={() => setSidebarOpen(false)}
+            className={clsx(
+              'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
+              isActive('/templates')
+                ? 'bg-primary-50 text-primary-600 font-medium'
+                : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
+            )}
+          >
+            <MessageSquare className="h-5 w-5" />
+            <span>Templates</span>
+          </Link>
+
+
+          {isCompanyUser && (
+            <>
               <Link
                 href="/jobs"
                 onClick={() => setSidebarOpen(false)}
