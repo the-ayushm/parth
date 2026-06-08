@@ -303,6 +303,20 @@ export default function DashboardLayout({
             <span>Templates</span>
           </Link>
 
+          <Link
+            href="/campaigns"
+            onClick={() => setSidebarOpen(false)}
+            className={clsx(
+              'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
+              isActive('/campaigns')
+                ? 'bg-primary-50 text-primary-600 font-medium'
+                : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
+            )}
+          >
+            <Send className="h-5 w-5" />
+            <span>Campaigns</span>
+          </Link>
+
 
           {isCompanyUser && (
             <>
@@ -320,19 +334,7 @@ export default function DashboardLayout({
                 <span>Jobs</span>
               </Link>
 
-              <Link
-                href="/campaigns"
-                onClick={() => setSidebarOpen(false)}
-                className={clsx(
-                  'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
-                  isActive('/campaigns')
-                    ? 'bg-primary-50 text-primary-600 font-medium'
-                    : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
-                )}
-              >
-                <Send className="h-5 w-5" />
-                <span>Campaigns</span>
-              </Link>
+
 
               <Link
                 href="/inbox"

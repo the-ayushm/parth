@@ -65,20 +65,21 @@ export default function UserPage() {
 
     const columns: Column<User>[] = [
         {
+            key: 'name',
             header: 'Name',
-            accessor: 'name',
         },
         {
+            key: 'email',
             header: 'Email',
-            accessor: 'email',
         },
         {
+            key: 'role',
             header: 'Role',
-            accessor: 'role',
         },
         {
+            key: 'status',
             header: 'Status',
-            accessor: (row) => (
+            render: (row) => (
                 <Badge
                     variant={
                         row.status === 'active'
@@ -91,8 +92,9 @@ export default function UserPage() {
             ),
         },
         {
+            key: 'actions',
             header: 'Actions',
-            accessor: (row) => (
+            render: (row) => (
                 <div className="flex gap-2">
                     <Link href={`/user/edit/${row.id}`}>
                         <Button size="sm">

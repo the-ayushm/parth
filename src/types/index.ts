@@ -103,19 +103,19 @@ export interface PhoneNumber {
   updated_at: string;
 }
 
-// Template types
 export interface Template {
   id: string;
-  company_id: string;
-  waba_id: string;
+  company_id?: string;
+  waba_id?: string;
   meta_template_id?: string;
   name: string;
-  category: string;
-  language: string;
-  status: 'APPROVED' | 'PENDING' | 'REJECTED';
+  category?: string;
+  language?: string;
+  status?: 'APPROVED' | 'PENDING' | 'REJECTED' | string;
   components?: any[];
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
 }
 
 // Webhook types
@@ -197,12 +197,7 @@ export interface Campaign {
   campaign_stop?: string | null;
 }
 
-export interface Template {
-  id: string;
-  name: string;
-  category?: string;
-  [key: string]: any;
-}
+
 
 // API Response types
 export interface APIResponse<T = any> {
