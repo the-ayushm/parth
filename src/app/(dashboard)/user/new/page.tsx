@@ -47,7 +47,7 @@ export default function CreateUserPage() {
             };
 
             const response = await api.post(
-                '/admin/companies/user',
+                '/users',
                 payload
             );
 
