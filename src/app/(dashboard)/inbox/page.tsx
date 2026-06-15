@@ -13,6 +13,7 @@ import { TemplateMessage } from "@/components/TemplateMessage";
 import { GalleryPickerModal } from "@/components/GalleryPickerModal";
 import "./inbox.css";
 import { Search } from "lucide-react";
+import api from "@/lib/api";
 
 import { useEffect, useState, useRef } from "react";
 import {
@@ -36,7 +37,6 @@ import {
   Image,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ngrokAxiosInstance } from "@/lib/axiosInstance";
 import {
   formatTemplateParameters,
   getTemplateVariables,
@@ -714,7 +714,7 @@ export default function InboxPage() {
   const { data: phoneNumbers = [] } = useQuery({
     queryKey: ["phone-numbers"],
     queryFn: async () => {
-      const response = await ngrokAxiosInstance.get("/admin/waba/phone-numbers");
+      const response = await api.get("/admin/waba/phone-numbers");
       const data = response.data;
       if (DEBUG_INBOX) {
         console.log("Phone numbers RAW:", data);
@@ -822,7 +822,7 @@ export default function InboxPage() {
       const maxPages = 50;
 
       while (page <= maxPages) {
-        const contactsRes = await ngrokAxiosInstance.get(
+        const contactsRes = await api.get(
           `/admin/contacts?page=${page}&limit=${CONTACTS_PAGE_LIMIT}&sortBy=created_at&sortOrder=asc`
         );
 
@@ -855,7 +855,7 @@ export default function InboxPage() {
       }
 
       const query = new URLSearchParams({ phone_number_id: selectedPhone });
-      const conversationsRes = await ngrokAxiosInstance.get(
+      const conversationsRes = await api.get(
         `/admin/messages/conversations?${query.toString()}`
       );
 
@@ -1018,7 +1018,7 @@ export default function InboxPage() {
         leadNumber: normalizePhone(selectedContact.phone || ""),
       });
 
-      const response = await ngrokAxiosInstance.get(
+      const response = await api.get(
         `/admin/messages/lead/conversations?${query.toString()}`
       );
 
@@ -1240,7 +1240,7 @@ export default function InboxPage() {
         };
       }
 
-      const response = await ngrokAxiosInstance.post("/admin/messages/send", apiPayload);
+      const response = await api.post("/admin/messages/send", apiPayload);
 
       const data = response.data;
 
@@ -1360,7 +1360,7 @@ export default function InboxPage() {
           leadNumber: normalizePhone(selectedContact.phone || ""),
         });
 
-        const response = await ngrokAxiosInstance.get(
+        const response = await api.get(
           `/admin/messages/lead/conversations?${query.toString()}`
         );
 
@@ -2873,8 +2873,8 @@ lg:relative lg:flex
 
               console.log("📤 Sending template payload:", JSON.stringify(payload, null, 2));
 
-              // Call EXTERNAL API via ngrokAxiosInstance
-              const response = await ngrokAxiosInstance.post("/admin/messages/send", payload);
+              // Call EXTERNAL API via api
+              const response = await api.post("/admin/messages/send", payload);
 
               const data = response.data;
 

@@ -21,7 +21,7 @@ export default function DashboardPage() {
           // Fetch available WABA accounts
           const wabaResponse = await api.get('/admin/waba');
           const wabaAccounts = wabaResponse.data || [];
-          
+
           if (wabaAccounts.length > 0) {
             // Use the first WABA account to sync templates
             const wabaId = wabaAccounts[0].id;
@@ -33,7 +33,7 @@ export default function DashboardPage() {
           // Non-blocking error - don't interrupt user experience
         }
       };
-      
+
       autoSyncTemplates();
     }
   }, [user, company]);
@@ -103,7 +103,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Links */}
-      <div className="bg-white rounded-lg shadow p-6">
+      {/* <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <a
@@ -138,7 +138,7 @@ export default function DashboardPage() {
             <p className="text-sm text-gray-600 mt-1">Check credit usage history</p>
           </a>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
