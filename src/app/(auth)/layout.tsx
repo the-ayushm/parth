@@ -16,7 +16,7 @@ export default function AuthLayout({
             height={80}
             className="mb-4 rounded-lg"
           />
-          <h1 className="text-3xl font-bold text-primary-600">Surefy Console</h1>
+          <h1 className="text-3xl font-bold text-primary-600">Chotu</h1>
           <p className="mt-2 text-gray-600">API Management Platform</p>
         </div>
         {children}

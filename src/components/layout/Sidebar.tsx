@@ -145,7 +145,7 @@ export default function Sidebar() {
       {/* Footer */}
       <div className="p-4 border-t border-gray-800">
         <p className="text-xs text-gray-400 text-center">
-          Surefy Console v1.0.0
+          Chotu v1.0.0
         </p>
       </div>
     </aside>

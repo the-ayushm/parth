@@ -135,7 +135,7 @@ export default function DashboardLayout({
               />
             </div>
             <h1 className="text-xl font-bold text-primary-600 group-hover:text-primary-700 transition-colors">
-              Surefy Console
+              Chotu
             </h1>
           </Link>
           {/* Close button for mobile */}

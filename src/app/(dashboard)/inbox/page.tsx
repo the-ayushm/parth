@@ -440,8 +440,8 @@ const mapContactsForSidebar = (items: any[], idSeed: string): Contact[] => {
       tags: Array.isArray(item?.tags)
         ? item.tags.map((t: any) => String(t?.id ?? t))
         : Array.isArray(item?.tag_ids)
-        ? item.tag_ids.map(String)
-        : [],
+          ? item.tag_ids.map(String)
+          : [],
       lastInboundAt: item?.lastInboundAt || item?.last_inbound_at || null,
       direction: item?.direction || item?.lastMessageDirection,
       lastMessageStatus: item?.lastMessageStatus || item?.last_message_status || item?.status,
@@ -564,7 +564,7 @@ export default function InboxPage() {
   const [activeIcon, setActiveIcon] = useState("CRM");
   const [filterPhoneNumbers, setFilterPhoneNumbers] = useState<string[]>([]);
   const selectedTag = null;
-  const setSelectedTag = (val) => {};
+  const setSelectedTag = (val) => { };
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [windowTick, setWindowTick] = useState(0);
   const dateRef = useRef<HTMLDivElement>(null);
@@ -704,7 +704,7 @@ export default function InboxPage() {
   /* sideBarMenuIcon removed */
 
   const showTagMenu = false;
-  const setShowTagMenu = (val) => {};
+  const setShowTagMenu = (val) => { };
 
   const reminders: any[] = [];
 
@@ -1718,16 +1718,15 @@ export default function InboxPage() {
         <div className="text-right flex flex-col items-end justify-center gap-1">
           {/* Unread Count Badge */}
           {(contact.unreadCount ?? 0) > 0 && (
-           <span className="unread-badge text-xs font-bold text-white w-5 h-5 flex items-center justify-center rounded-full">
+            <span className="unread-badge text-xs font-bold text-white w-5 h-5 flex items-center justify-center rounded-full">
               {contact.unreadCount}
             </span>
           )}
 
           {/* Last Message Time */}
           {contact.lastMessageTime && (
-            <span className={`text-[10px] font-medium leading-none ${
-              (contact.unreadCount ?? 0) > 0 ? "text-blue-500" : "text-gray-500 dark:text-gray-400"
-            }`}>
+            <span className={`text-[10px] font-medium leading-none ${(contact.unreadCount ?? 0) > 0 ? "text-blue-500" : "text-gray-500 dark:text-gray-400"
+              }`}>
               {new Date(contact.lastMessageTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
@@ -1778,524 +1777,524 @@ export default function InboxPage() {
     >
       {/* Contacts Sidebar */}
       <div className={`contacts-sidebar flex-col lg:w-[380px] ${selectedContact ? "hidden lg:flex" : "flex"}`}>
-            {/* Contacts Sidebar */}
-            <div
-              className="contacts-sidebar w-full flex flex-col h-full border-r-2 border-blue-300 dark:border-blue-700"
-            >
-              {/* Header Section */}
-              <div className="contacts-header bg-blue-600 text-white p-4 font-bold flex items-center justify-between relative border-b-2 border-blue-500 shadow-sm h-18 py-3.75 px-4">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setShowSidebar(prev => !prev)}
-                    className="lg:hidden text-white"
-                  >
-                    ☰
-                  </button>
-                  <span className="font-bold text-white text-lg">Inbox</span>
-                </div>
+        {/* Contacts Sidebar */}
+        <div
+          className="contacts-sidebar w-full flex flex-col h-full border-r-2 border-blue-300 dark:border-blue-700"
+        >
+          {/* Header Section */}
+          <div className="contacts-header bg-blue-600 text-white p-4 font-bold flex items-center justify-between relative border-b-2 border-blue-500 shadow-sm h-18 py-3.75 px-4">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowSidebar(prev => !prev)}
+                className="lg:hidden text-white"
+              >
+                ☰
+              </button>
+              <span className="font-bold text-white text-lg">Inbox</span>
+            </div>
 
-                {/* Right side — Dropdown */}
-                <div className="relative ml-auto">
-                  <button
-                    onClick={() => setShowInboxMenu(!showInboxMenu)}
-                    className="p-2 rounded-full hover:bg-blue-500 transition-all"
-                  >
-                    <MoreVertical className="cursor-pointer text-white" />
-                  </button>
+            {/* Right side — Dropdown */}
+            <div className="relative ml-auto">
+              <button
+                onClick={() => setShowInboxMenu(!showInboxMenu)}
+                className="p-2 rounded-full hover:bg-blue-500 transition-all"
+              >
+                <MoreVertical className="cursor-pointer text-white" />
+              </button>
 
-                  {/* Dropdown Section */}
-                  {showInboxMenu && (
-                    <div
-                      ref={inboxMenuRef}
-                      className="dropdown-menu absolute top-0 left-full ml-1 w-64 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded-lg shadow-lg z-50 p-3 space-y-2"
-                    >
-                      {/* Unread Row */}
+              {/* Dropdown Section */}
+              {showInboxMenu && (
+                <div
+                  ref={inboxMenuRef}
+                  className="dropdown-menu absolute top-0 left-full ml-1 w-64 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded-lg shadow-lg z-50 p-3 space-y-2"
+                >
+                  {/* Unread Row */}
+                  <div
+                    ref={unreadRef}
+                    onClick={() =>
+                      setActiveSubMenu(
+                        activeSubMenu === "unreadTime"
+                          ? null
+                          : "unreadTime",
+                      )
+                    }
+                    className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 px-2 py-1 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 dark:hover:text-white rounded"
+                  >
+                    Unread
+                  </div>
+
+                  {/* Floating Time Filter Box */}
+                  {activeSubMenu === "unreadTime" && unreadRef.current && (
+                    <>
                       <div
-                        ref={unreadRef}
-                        onClick={() =>
-                          setActiveSubMenu(
-                            activeSubMenu === "unreadTime"
-                              ? null
-                              : "unreadTime",
-                          )
-                        }
-                        className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 px-2 py-1 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 dark:hover:text-white rounded"
+                        className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-48 space-y-2"
+                        style={{
+                          top: unreadRef.current?.offsetTop,
+                          left:
+                            (unreadRef.current.offsetLeft || 0) +
+                            (unreadRef.current.offsetWidth || 0) +
+                            12,
+                        }}
                       >
-                        Unread
-                      </div>
+                        <div
+                          ref={dateRef}
+                          onClick={() => {
+                            setShowDatePicker(!showDatePicker);
+                            setShowTimeRange(false);
+                          }}
+                          className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                        >
+                          Date
+                        </div>
 
-                      {/* Floating Time Filter Box */}
-                      {activeSubMenu === "unreadTime" && unreadRef.current && (
-                        <>
+                        {showDatePicker && dateRef.current && (
                           <div
-                            className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-48 space-y-2"
+                            className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-56"
                             style={{
-                              top: unreadRef.current?.offsetTop,
+                              top: (dateRef.current?.offsetTop ?? 0) + 5,
                               left:
-                                (unreadRef.current.offsetLeft || 0) +
-                                (unreadRef.current.offsetWidth || 0) +
-                                12,
+                                (dateRef.current?.offsetLeft ?? 0) +
+                                (dateRef.current?.offsetWidth ?? 0) +
+                                4,
                             }}
                           >
-                            <div
-                              ref={dateRef}
-                              onClick={() => {
-                                setShowDatePicker(!showDatePicker);
-                                setShowTimeRange(false);
-                              }}
-                              className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
-                            >
-                              Date
-                            </div>
+                            <input
+                              type="date"
+                              className="w-full px-2 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 cursor-pointer"
+                            />
+                          </div>
+                        )}
 
-                            {showDatePicker && dateRef.current && (
-                              <div
-                                className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-56"
-                                style={{
-                                  top: (dateRef.current?.offsetTop ?? 0) + 5,
-                                  left:
-                                    (dateRef.current?.offsetLeft ?? 0) +
-                                    (dateRef.current?.offsetWidth ?? 0) +
-                                    4,
-                                }}
-                              >
-                                <input
-                                  type="date"
-                                  className="w-full px-2 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 cursor-pointer"
-                                />
-                              </div>
-                            )}
+                        <div
+                          ref={timeRef}
+                          onClick={() => {
+                            setShowTimeRange(!showTimeRange);
+                            setShowDatePicker(false);
+                          }}
+                          className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                        >
+                          Time
+                        </div>
 
-                            <div
-                              ref={timeRef}
-                              onClick={() => {
-                                setShowTimeRange(!showTimeRange);
-                                setShowDatePicker(false);
-                              }}
-                              className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
-                            >
-                              Time
-                            </div>
+                        {[
+                          "All",
+                          "Past hour",
+                          "Past 2 hours",
+                          "Past week",
+                          "Past month",
+                          "Past year",
+                        ].map((label) => (
+                          <div
+                            key={label}
+                            className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                          >
+                            {label}
+                          </div>
+                        ))}
+                      </div>
 
-                            {[
-                              "All",
-                              "Past hour",
-                              "Past 2 hours",
-                              "Past week",
-                              "Past month",
-                              "Past year",
-                            ].map((label) => (
-                              <div
-                                key={label}
-                                className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
-                              >
-                                {label}
-                              </div>
-                            ))}
+                      {showTimeRange && timeRef.current && (
+                        <div
+                          className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-62.5 min-w-62.5"
+                          style={{
+                            top: timeRef.current?.offsetTop || 0,
+                            left:
+                              (timeRef.current?.offsetLeft || 0) +
+                              (timeRef.current?.offsetWidth || 0) +
+                              20,
+                            width: "180px",
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-1 mb-2">
+                            <select className="w-25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 dark:text-white">
+                              {[...Array(12)]
+                                .map((_, i) =>
+                                  i === 0 ? "12:00" : `${i}:00`,
+                                )
+                                .map((time) => (
+                                  <option key={time}>{time}</option>
+                                ))}
+                            </select>
+                            <select className="w-26.25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
+                              {["AM", "PM"].map((meridian) => (
+                                <option key={meridian}>{meridian}</option>
+                              ))}
+                            </select>
                           </div>
 
-                          {showTimeRange && timeRef.current && (
-                            <div
-                              className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-62.5 min-w-62.5"
-                              style={{
-                                top: timeRef.current?.offsetTop || 0,
-                                left:
-                                  (timeRef.current?.offsetLeft || 0) +
-                                  (timeRef.current?.offsetWidth || 0) +
-                                  20,
-                                width: "180px",
-                              }}
-                            >
-                              <div className="flex items-center justify-between gap-1 mb-2">
-                                <select className="w-25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 dark:text-white">
-                                  {[...Array(12)]
-                                    .map((_, i) =>
-                                      i === 0 ? "12:00" : `${i}:00`,
-                                    )
-                                    .map((time) => (
-                                      <option key={time}>{time}</option>
-                                    ))}
-                                </select>
-                                <select className="w-26.25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
-                                  {["AM", "PM"].map((meridian) => (
-                                    <option key={meridian}>{meridian}</option>
-                                  ))}
-                                </select>
-                              </div>
+                          <div className="flex items-center justify-between gap-1">
+                            <select className="w-25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 dark:text-white">
+                              {[...Array(12)]
+                                .map((_, i) =>
+                                  i === 0 ? "12:00" : `${i}:00`,
+                                )
+                                .map((time) => (
+                                  <option key={time}>{time}</option>
+                                ))}
+                            </select>
+                            <select className="w-26.25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
+                              {["AM", "PM"].map((meridian) => (
+                                <option key={meridian}>{meridian}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
 
-                              <div className="flex items-center justify-between gap-1">
-                                <select className="w-25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 dark:text-white">
-                                  {[...Array(12)]
-                                    .map((_, i) =>
-                                      i === 0 ? "12:00" : `${i}:00`,
-                                    )
-                                    .map((time) => (
-                                      <option key={time}>{time}</option>
-                                    ))}
-                                </select>
-                                <select className="w-26.25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
-                                  {["AM", "PM"].map((meridian) => (
-                                    <option key={meridian}>{meridian}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-                          )}
-                        </>
+                  {["Assigned", "Unassigned"].map((label) => (
+                    <button
+                      key={label}
+                      onClick={() => {
+                        setActiveDropdown(label as any);
+                        setShowTimeFilter(label === "Unread");
+                        setActiveSubMenu(null);
+                        setShowInboxMenu(false);
+                      }}
+                      className="dropdown-item w-full text-left text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                    >
+                      {label}
+                    </button>
+                  ))}
+
+                  <div className="border-t border-blue-600 dark:border-blue-700 my-2" />
+
+                  <div className="space-y-2">
+                    <div
+                      ref={assignedRef}
+                      onClick={() =>
+                        setActiveSubMenu(
+                          activeSubMenu === "assignedTo"
+                            ? null
+                            : "assignedTo",
+                        )
+                      }
+                      className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                    >
+                      Assigned to
+                    </div>
+
+                    {activeSubMenu === "assignedTo" &&
+                      assignedRef.current && (
+                        <div
+                          className="absolute z-50"
+                          style={{
+                            top: assignedRef.current.offsetTop,
+                            left:
+                              assignedRef.current.offsetLeft +
+                              assignedRef.current.offsetWidth +
+                              12,
+                          }}
+                        >
+                          <input
+                            type="text"
+                            placeholder="demo"
+                            className="w-48 px-3 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:hover:bg-blue-700 shadow-sm"
+                          />
+                        </div>
                       )}
 
-                      {["Assigned", "Unassigned"].map((label) => (
-                        <button
-                          key={label}
-                          onClick={() => {
-                            setActiveDropdown(label as any);
-                            setShowTimeFilter(label === "Unread");
-                            setActiveSubMenu(null);
-                            setShowInboxMenu(false);
-                          }}
-                          className="dropdown-item w-full text-left text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
-                        >
-                          {label}
-                        </button>
-                      ))}
-
-                      <div className="border-t border-blue-600 dark:border-blue-700 my-2" />
-
-                      <div className="space-y-2">
-                        <div
-                          ref={assignedRef}
-                          onClick={() =>
-                            setActiveSubMenu(
-                              activeSubMenu === "assignedTo"
-                                ? null
-                                : "assignedTo",
-                            )
-                          }
-                          className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
-                        >
-                          Assigned to
-                        </div>
-
-                        {activeSubMenu === "assignedTo" &&
-                          assignedRef.current && (
-                            <div
-                              className="absolute z-50"
-                              style={{
-                                top: assignedRef.current.offsetTop,
-                                left:
-                                  assignedRef.current.offsetLeft +
-                                  assignedRef.current.offsetWidth +
-                                  12,
-                              }}
-                            >
-                              <input
-                                type="text"
-                                placeholder="demo"
-                                className="w-48 px-3 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:hover:bg-blue-700 shadow-sm"
-                              />
-                            </div>
-                          )}
-
-                        <div
-                          ref={phoneRef}
-                          onClick={() =>
-                            setActiveSubMenu(
-                              activeSubMenu === "phoneNumbers"
-                                ? null
-                                : "phoneNumbers",
-                            )
-                          }
-                          className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
-                        >
-                          Phone number
-                        </div>
-
-                        {activeSubMenu === "phoneNumbers" &&
-                          phoneRef.current && (
-                            <div
-                              className="absolute z-50"
-                              style={{
-                                top: phoneRef.current.offsetTop || 0,
-                                left:
-                                  (phoneRef.current.offsetLeft || 0) +
-                                  (phoneRef.current.offsetWidth || 0) +
-                                  12,
-                              }}
-                            >
-                              <input
-                                type="text"
-                                placeholder="number"
-                                className="w-48 px-3 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 shadow-sm"
-                              />
-                            </div>
-                          )}
-                      </div>
+                    <div
+                      ref={phoneRef}
+                      onClick={() =>
+                        setActiveSubMenu(
+                          activeSubMenu === "phoneNumbers"
+                            ? null
+                            : "phoneNumbers",
+                        )
+                      }
+                      className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                    >
+                      Phone number
                     </div>
-                  )}
+
+                    {activeSubMenu === "phoneNumbers" &&
+                      phoneRef.current && (
+                        <div
+                          className="absolute z-50"
+                          style={{
+                            top: phoneRef.current.offsetTop || 0,
+                            left:
+                              (phoneRef.current.offsetLeft || 0) +
+                              (phoneRef.current.offsetWidth || 0) +
+                              12,
+                          }}
+                        >
+                          <input
+                            type="text"
+                            placeholder="number"
+                            className="w-48 px-3 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 shadow-sm"
+                          />
+                        </div>
+                      )}
+                  </div>
                 </div>
-              </div>
+              )}
+            </div>
+          </div>
 
 
 
-              {/* Search Bar + Filter Chips */}
-              <div className="px-6 pt-4 pb-3 shrink-0">
-                
+          {/* Search Bar + Filter Chips */}
+          <div className="px-6 pt-4 pb-3 shrink-0">
 
-                <div className="relative flex items-center gap-3">
-                  <div className="relative flex-1">
-                    {!searchQuery.trim() && (
-                      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300">
-                        <Search size={18} />
-                      </span>
-                    )}
 
-                    <input
-                      type="search"
-                      placeholder="Find conversations..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className={`w-full p-2 bg-gray-50 dark:bg-gray-800
+            <div className="relative flex items-center gap-3">
+              <div className="relative flex-1">
+                {!searchQuery.trim() && (
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-300">
+                    <Search size={18} />
+                  </span>
+                )}
+
+                <input
+                  type="search"
+                  placeholder="Find conversations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`w-full p-2 bg-gray-50 dark:bg-gray-800
                         border border-gray-200 dark:border-gray-700 rounded-xl
                         text-gray-900 dark:text-white placeholder-gray-500
                         focus:outline-none focus:ring-2 focus:ring-blue-500 ${searchQuery.trim() ? "pl-4" : "pl-16"
-                        }`}
-                    />
-                  </div>
-
-                  {/* Filter button */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setShowFilterMenu((s) => !s)}
-                      className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-blue-600"
-                      title="Filter conversations"
-                    >
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5h18M6 12h12M10 19h4" />
-                      </svg>
-                    </button>
-
-                    <button className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600" title="Contacts">
-                      <Users size={18} />
-                    </button>
-                  </div>
-
-                  {/* Filter dropdown */}
-                  {showFilterMenu && (
-                    <div className="filter-dropdown absolute top-1/2 left-full ml-2 -translate-y-1/2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-3">
-                      <div className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-2">Filter Conversations</div>
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-blue-600">
-                          <input type="checkbox" className="rounded" />
-                          <span>Unread</span>
-                        </label>
-                        <label className="flex items-center gap-2 text-blue-600">
-                          <input type="checkbox" className="rounded" />
-                          <span>Assigned</span>
-                        </label>
-                        <label className="flex items-center gap-2 text-blue-600">
-                          <input type="checkbox" className="rounded" />
-                          <span>Unassigned</span>
-                        </label>
-                      </div>
-
-                      <div className="border-t border-gray-100 dark:border-gray-700 my-3" />
-
-                      <div className="text-sm font-medium text-gray-700 dark:text-gray-100 mb-2">Select Phone Number</div>
-                      <div className="space-y-1 max-h-48 overflow-auto">
-                        {phoneNumbers.map((pn: any) => {
-                          const id = String(pn.phoneNumberId || pn.id || pn.displayPhone || pn.phone_number);
-                          const isSelected = selectedPhone === id;
-                          const disp = pn.displayPhone || pn.phone_number || pn.number || id;
-                          return (
-                            <button
-                              key={id}
-                              onClick={() => handlePhoneSelect(id)}
-                              className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
-                            >
-                              {disp}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-2 flex items-center justify-between">
-                  <p className="text-[11px] text-blue-600 dark:text-blue-400">
-                    Showing {paginatedContacts.length} of {filteredContacts.length} contacts ({currentPage} of {totalPages})
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                      className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Previous page"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      disabled={currentPage === totalPages}
-                      className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Next page"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+                    }`}
+                />
               </div>
 
-              {/* Chat Messages */}
-              <div
-                className="flex-1 overflow-y-auto"
-                style={{
-                  minHeight: 0,
-                  scrollbarWidth: 'thin',
-                  scrollbarColor: '#10b981 #f0f0f0'
-                }}
-              >
-                {loadingContacts && (
-                  <p className="p-4 text-blue-600">Loading...</p>
-                )}
-                {paginatedContacts.map((c: any) => (
-                  <ContactItem
-                    key={c.id}
-                    contact={c}
-                    isSelected={selectedContact?.id === c.id}
-                    onClick={() => handleContactSelect(c)}
-                    reminders={getContactReminders(c.id)}
-                  />
-                ))}
+              {/* Filter button */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowFilterMenu((s) => !s)}
+                  className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-blue-600"
+                  title="Filter conversations"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5h18M6 12h12M10 19h4" />
+                  </svg>
+                </button>
+
+                <button className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600" title="Contacts">
+                  <Users size={18} />
+                </button>
+              </div>
+
+              {/* Filter dropdown */}
+              {showFilterMenu && (
+                <div className="filter-dropdown absolute top-1/2 left-full ml-2 -translate-y-1/2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-3">
+                  <div className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-2">Filter Conversations</div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-blue-600">
+                      <input type="checkbox" className="rounded" />
+                      <span>Unread</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-blue-600">
+                      <input type="checkbox" className="rounded" />
+                      <span>Assigned</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-blue-600">
+                      <input type="checkbox" className="rounded" />
+                      <span>Unassigned</span>
+                    </label>
+                  </div>
+
+                  <div className="border-t border-gray-100 dark:border-gray-700 my-3" />
+
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-100 mb-2">Select Phone Number</div>
+                  <div className="space-y-1 max-h-48 overflow-auto">
+                    {phoneNumbers.map((pn: any) => {
+                      const id = String(pn.phoneNumberId || pn.id || pn.displayPhone || pn.phone_number);
+                      const isSelected = selectedPhone === id;
+                      const disp = pn.displayPhone || pn.phone_number || pn.number || id;
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => handlePhoneSelect(id)}
+                          className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+                        >
+                          {disp}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-2 flex items-center justify-between">
+              <p className="text-[11px] text-blue-600 dark:text-blue-400">
+                Showing {paginatedContacts.length} of {filteredContacts.length} contacts ({currentPage} of {totalPages})
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Previous page"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Next page"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Chat Panel */}
+          {/* Chat Messages */}
           <div
-            className={`
+            className="flex-1 overflow-y-auto"
+            style={{
+              minHeight: 0,
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#10b981 #f0f0f0'
+            }}
+          >
+            {loadingContacts && (
+              <p className="p-4 text-blue-600">Loading...</p>
+            )}
+            {paginatedContacts.map((c: any) => (
+              <ContactItem
+                key={c.id}
+                contact={c}
+                isSelected={selectedContact?.id === c.id}
+                onClick={() => handleContactSelect(c)}
+                reminders={getContactReminders(c.id)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Chat Panel */}
+      <div
+        className={`
  chat-area
 flex flex-col min-h-0 h-full
 w-full
 ${selectedContact ? "flex absolute inset-0 z-40 bg-white dark:bg-gray-900" : "hidden"}
 lg:relative lg:flex
   `}
-          >
-            {!selectedContact ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center text-blue-600 p-6">
-                <MessageSquare
-                  size={60}
-                  className={`${PRIMARY_TEXT} ${iconJumpAnimation}`}
-                />
-                <p className="mt-4 font-semibold">
-                  Select a contact to start chatting
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col h-full overflow-hidden">
-                {/* Chat Header */}
-                <div
-                  className={`contacts-header text-white p-4 flex justify-between items-center rounded-tr-2xl border-b-2 border-blue-300 dark:border-blue-600 shadow-md`}
-                  style={{ height: "72px" }}
+      >
+        {!selectedContact ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center text-blue-600 p-6">
+            <MessageSquare
+              size={60}
+              className={`${PRIMARY_TEXT} ${iconJumpAnimation}`}
+            />
+            <p className="mt-4 font-semibold">
+              Select a contact to start chatting
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col h-full overflow-hidden">
+            {/* Chat Header */}
+            <div
+              className={`contacts-header text-white p-4 flex justify-between items-center rounded-tr-2xl border-b-2 border-blue-300 dark:border-blue-600 shadow-md`}
+              style={{ height: "72px" }}
+            >
+              <div className="flex items-center gap-3">
+                {/* Back button (mobile) */}
+                <button
+                  onClick={() => {
+                    setSelectedContact(null);
+                  }}
+                  className={`${iconJumpAnimation} lg:hidden`}
                 >
-                  <div className="flex items-center gap-3">
-                    {/* Back button (mobile) */}
-                    <button
-                      onClick={() => {
-                        setSelectedContact(null);
-                      }}
-                      className={`${iconJumpAnimation} lg:hidden`}
-                    >
-                      <ArrowLeft className={iconJumpAnimation} />
-                    </button>
+                  <ArrowLeft className={iconJumpAnimation} />
+                </button>
 
-                    {/* DP */}
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/60 text-black dark:text-white font-bold">
-                      {selectedContact?.initials}
-                    </div>
-
-                    {/* Contact info */}
-                    <div className="flex flex-col leading-tight">
-                      {(() => {
-                        const headerName = selectedContact?.name || "Unknown";
-                        const headerPhone = removePlusPrefix(selectedContact?.phone || "");
-                        const showHeaderPhone =
-                          !!headerPhone && !isSamePhoneValue(headerName, headerPhone);
-
-                        return (
-                          <>
-                            <span className="font-semibold text-black text-sm">
-                              {headerName}
-                            </span>
-                            {showHeaderPhone ? (
-                              <span className="text-xs text-blue-200">
-                                {headerPhone}
-                              </span>
-                            ) : null}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Action icons */}
-                  <div className="flex items-center gap-4 text-white">
-                    <div className="relative group">
-                      <Phone
-                        size={18}
-                        className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
-                      />
-                      <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
-                        Audio call
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
-                      </span>
-                    </div>
-
-                    <div className="relative group">
-                      <Video
-                        size={18}
-                        className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
-                      />
-                      <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
-                        Video call
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
-                      </span>
-                    </div>
-
-                    <div className="relative group">
-                      <button
-                        onClick={() => setShowFAQFlow(!showFAQFlow)}
-                        className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
-                      >
-                        <MessageSquare size={18} />
-                      </button>
-                      <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-blue-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
-                        FAQ Bot
-                      </span>
-                    </div>
-
-                    <div className="relative group">
-                      <MoreVertical
-                        size={15}
-                        className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
-                      />
-                      <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
-                        Options
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
-                      </span>
-                    </div>
-
-                  </div>
-
+                {/* DP */}
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/60 text-black dark:text-white font-bold">
+                  {selectedContact?.initials}
                 </div>
-                <div className="h-px w-full bg-gray-300 dark:bg-gray-700"></div>
 
-                {/* 24-hour window banner */}
-                {selectedContact && (
+                {/* Contact info */}
+                <div className="flex flex-col leading-tight">
+                  {(() => {
+                    const headerName = selectedContact?.name || "Unknown";
+                    const headerPhone = removePlusPrefix(selectedContact?.phone || "");
+                    const showHeaderPhone =
+                      !!headerPhone && !isSamePhoneValue(headerName, headerPhone);
+
+                    return (
+                      <>
+                        <span className="font-semibold text-black text-sm">
+                          {headerName}
+                        </span>
+                        {showHeaderPhone ? (
+                          <span className="text-xs text-blue-200">
+                            {headerPhone}
+                          </span>
+                        ) : null}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Action icons */}
+              <div className="flex items-center gap-4 text-white">
+                <div className="relative group">
+                  <Phone
+                    size={18}
+                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
+                  />
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
+                    Audio call
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
+                  </span>
+                </div>
+
+                <div className="relative group">
+                  <Video
+                    size={18}
+                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
+                  />
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
+                    Video call
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
+                  </span>
+                </div>
+
+                <div className="relative group">
+                  <button
+                    onClick={() => setShowFAQFlow(!showFAQFlow)}
+                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
+                  >
+                    <MessageSquare size={18} />
+                  </button>
+                  <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-blue-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
+                    FAQ Bot
+                  </span>
+                </div>
+
+                <div className="relative group">
+                  <MoreVertical
+                    size={15}
+                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
+                  />
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
+                    Options
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
+                  </span>
+                </div>
+
+              </div>
+
+            </div>
+            <div className="h-px w-full bg-gray-300 dark:bg-gray-700"></div>
+
+            {/* 24-hour window banner */}
+            {/* {selectedContact && (
                   <div
                     className={`px-4 py-2 text-sm font-medium ${isWindowOpenFromAPI
                         ? "bg-blue-500/20 text-blue-800 dark:text-blue-200"
@@ -2308,490 +2307,490 @@ lg:relative lg:flex
                       <span>24h window closed — Send a template to re-engage</span>
                     )}
                   </div>
-                )}
+                )} */}
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto chat-messages min-h-0">
-                  {(() => {
-                    const items: Array<
-                      | { type: "date"; label: string }
-                      | { type: "message"; msg: Message }
-                    > = [];
-                    let lastDateLabel: string | null = null;
-                    for (const msg of messages) {
-                      const dateLabel = getDateGroupLabel(
-                        new Date(msg.createdAt),
-                      );
-                      if (dateLabel !== lastDateLabel) {
-                        items.push({ type: "date", label: dateLabel });
-                        lastDateLabel = dateLabel;
-                      }
-                      items.push({ type: "message", msg });
-                    }
-                    return items.map((item, i) =>
-                      item.type === "date" ? (
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto chat-messages min-h-0">
+              {(() => {
+                const items: Array<
+                  | { type: "date"; label: string }
+                  | { type: "message"; msg: Message }
+                > = [];
+                let lastDateLabel: string | null = null;
+                for (const msg of messages) {
+                  const dateLabel = getDateGroupLabel(
+                    new Date(msg.createdAt),
+                  );
+                  if (dateLabel !== lastDateLabel) {
+                    items.push({ type: "date", label: dateLabel });
+                    lastDateLabel = dateLabel;
+                  }
+                  items.push({ type: "message", msg });
+                }
+                return items.map((item, i) =>
+                  item.type === "date" ? (
+                    <div
+                      key={`date-${i}-${item.label}`}
+                      className="chat-date-badge"
+                    >
+                      {item.label}
+                    </div>
+                  ) : (
+                    (() => {
+                      const msg = item.msg;
+                      const messageText =
+                        typeof msg.text === "string"
+                          ? msg.text
+                          : msg.text == null
+                            ? ""
+                            : String(msg.text);
+                      const failed =
+                        isMyMessage(msg) &&
+                        isFailed(msg.status) &&
+                        hasFailureSignal(msg);
+                      const isOutgoing = isMyMessage(msg);
+                      return (
                         <div
-                          key={`date-${i}-${item.label}`}
-                          className="chat-date-badge"
+                          key={msg.id}
+                          className={`message ${isOutgoing ? "outgoing" : "incoming"} ${failed ? "failed" : ""}`}
                         >
-                          {item.label}
-                        </div>
-                      ) : (
-                        (() => {
-                          const msg = item.msg;
-                          const messageText =
-                            typeof msg.text === "string"
-                              ? msg.text
-                              : msg.text == null
-                                ? ""
-                                : String(msg.text);
-                          const failed =
-                            isMyMessage(msg) &&
-                            isFailed(msg.status) &&
-                            hasFailureSignal(msg);
-                          const isOutgoing = isMyMessage(msg);
-                          return (
-                            <div
-                              key={msg.id}
-                              className={`message ${isOutgoing ? "outgoing" : "incoming"} ${failed ? "failed" : ""}`}
-                            >
-                              <div className="bubble">
-                                {msg.isTemplate && Array.isArray(msg.templateComponents) && msg.templateComponents.length > 0 ? (
-                                  <>
-                                    <TemplateMessage
-                                      components={msg.templateComponents}
-                                      mediaUrl={msg.mediaUrl}
-                                      phoneNumberId={outboundPhoneNumberId}
-                                      templateName={msg.templateName}
-                                      templateLanguage={msg.templateLanguage}
-                                      contentPayload={msg.templateContent}
-                                    />
-                                    {!msg.templateComponents.some(
-                                      (component: any) =>
-                                        !!component?.text ||
-                                        (Array.isArray(component?.buttons) && component.buttons.length > 0) ||
-                                        !!component?.example?.header_handle?.length,
-                                    ) && (
-                                        <div className="text">{messageText || "Template message sent"}</div>
-                                      )}
-                                    {failed && (
-                                      <div className="error-box">
-                                        <strong>Failed</strong>
-                                        {msg.errorCode ? ` (#${msg.errorCode})` : ""}{" "}
-                                        {getErrorMessage(msg)}
-                                      </div>
-                                    )}
-                                    <div className={`meta ${failed ? "error" : ""}`}>
-                                      <span className="time">
-                                        {new Date(msg.createdAt).toLocaleTimeString([], {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })}
-                                      </span>
-                                      <span className={`status ${msg.status === "read" || msg.status === "delivered" ? "sent" : ""}`}>
-                                        <MessageStatus
-                                          status={msg.status}
-                                          direction={msg.direction}
-                                          error={msg.errorMessage || msg.error || null}
-                                          errorCode={msg.errorCode || null}
-                                          readAt={(msg as any).readAt}
-                                          deliveredAt={(msg as any).deliveredAt}
-                                          failedAt={(msg as any).failedAt || (msg as any).failed_at}
-                                        />
-                                      </span>
-                                    </div>
-                                  </>
-                                ) : getButtonMessageContent(msg) ? (
-                                  (() => {
-                                    const btnContent = getButtonMessageContent(msg)!;
-                                    return (
-                                      <>
-                                        <div className="template-body">{btnContent.text}</div>
-                                        {btnContent.buttons.map((btn: string, i: number) => (
-                                          <a key={i} className="template-button" href="#">
-                                            {btn}
-                                          </a>
-                                        ))}
-                                        {failed && (
-                                          <div className="error-box">
-                                            <strong>Failed</strong>
-                                            {msg.errorCode ? ` (#${msg.errorCode})` : ""}{" "}
-                                            {getErrorMessage(msg)}
-                                          </div>
-                                        )}
-                                        <div className={`meta ${failed ? "error" : ""}`}>
-                                          <span className="time">
-                                            {new Date(msg.createdAt).toLocaleTimeString([], {
-                                              hour: "2-digit",
-                                              minute: "2-digit",
-                                            })}
-                                          </span>
-                                          <span className={`status ${msg.status === "read" || msg.status === "delivered" ? "sent" : ""}`}>
-                                            <MessageStatus
-                                              status={msg.status}
-                                              direction={msg.direction}
-                                              error={msg.errorMessage || msg.error || null}
-                                              errorCode={msg.errorCode || null}
-                                              readAt={(msg as any).readAt}
-                                              deliveredAt={(msg as any).deliveredAt}
-                                              failedAt={(msg as any).failedAt || (msg as any).failed_at}
-                                            />
-                                          </span>
-                                        </div>
-                                      </>
-                                    );
-                                  })()
-                                ) : msg.type === "interactive" ? (
-                                  <>
-                                    <div className="flex items-center gap-2 mb-1 text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                      {isOutgoing ? "Sent Button Option" : "Clicked Button"}
-                                    </div>
-                                    <div className="inline-flex items-center px-4 py-2 border-2 border-blue-500/20 dark:border-blue-500/40 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 font-semibold text-sm rounded-xl select-none shadow-sm">
-                                      {messageText}
-                                    </div>
-                                    {failed && (
-                                      <div className="error-box">
-                                        <strong>Failed</strong>
-                                        {msg.errorCode ? ` (#${msg.errorCode})` : ""}{" "}
-                                        {getErrorMessage(msg)}
-                                      </div>
-                                    )}
-                                    <div className={`meta ${failed ? "error" : ""}`}>
-                                      <span className="time">
-                                        {new Date(msg.createdAt).toLocaleTimeString([], {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })}
-                                      </span>
-                                      <span className={`status ${msg.status === "read" || msg.status === "delivered" ? "sent" : ""}`}>
-                                        <MessageStatus
-                                          status={msg.status}
-                                          direction={msg.direction}
-                                          error={msg.errorMessage || msg.error || null}
-                                          errorCode={msg.errorCode || null}
-                                          readAt={(msg as any).readAt}
-                                          deliveredAt={(msg as any).deliveredAt}
-                                          failedAt={(msg as any).failedAt || (msg as any).failed_at}
-                                        />
-                                      </span>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <>
-                                    {msg.mediaUrl && (
-                                      <div className="message-media mb-2">
-                                        {msg.messageType === "image" || msg.mediaType?.startsWith("image/") ? (
-                                          <img
-                                            src={msg.mediaUrl}
-                                            alt="Sent image"
-                                            className="max-w-70 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                            onClick={() => window.open(msg.mediaUrl!, "_blank")}
-                                          />
-                                        ) : msg.messageType === "video" || msg.mediaType?.startsWith("video/") ? (
-                                          <video src={msg.mediaUrl} controls className="max-w-70 rounded-lg" />
-                                        ) : msg.messageType === "audio" || msg.mediaType?.startsWith("audio/") ? (
-                                          <audio src={msg.mediaUrl} controls className="max-w-70" />
-                                        ) : (
-                                          <a
-                                            href={msg.mediaUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-3 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                                          >
-                                            <FileText className="w-8 h-8 text-orange-500" />
-                                            <div className="flex-1 min-w-0">
-                                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">Document</p>
-                                              <p className="text-xs text-blue-600">Click to download</p>
-                                            </div>
-                                          </a>
-                                        )}
-                                      </div>
-                                    )}
-                                    {messageText && !messageText.startsWith("[") ? (
-                                      <div className="text">{messageText}</div>
-                                    ) : !msg.mediaUrl ? (
-                                      <div className="text opacity-70">
-                                        {isOutgoing ? "Message sent" : "Message received"}
-                                      </div>
-                                    ) : null}
-                                    {failed && (
-                                      <div className="error-box">
-                                        <strong>Failed</strong>
-                                        {msg.errorCode ? ` (#${msg.errorCode})` : ""}{" "}
-                                        {getErrorMessage(msg)}
-                                      </div>
-                                    )}
-                                    <div className={`meta ${failed ? "error" : ""}`}>
-                                      <span className="time">
-                                        {new Date(msg.createdAt).toLocaleTimeString([], {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })}
-                                      </span>
-                                      <span className={`status ${msg.status === "read" || msg.status === "delivered" ? "sent" : ""}`}>
-                                        <MessageStatus
-                                          status={msg.status}
-                                          direction={msg.direction}
-                                          error={msg.errorMessage || msg.error || null}
-                                          errorCode={msg.errorCode || null}
-                                          readAt={(msg as any).readAt}
-                                          deliveredAt={(msg as any).deliveredAt}
-                                          failedAt={(msg as any).failedAt || (msg as any).failed_at}
-                                        />
-                                      </span>
-                                    </div>
-                                  </>
+                          <div className="bubble">
+                            {msg.isTemplate && Array.isArray(msg.templateComponents) && msg.templateComponents.length > 0 ? (
+                              <>
+                                <TemplateMessage
+                                  components={msg.templateComponents}
+                                  mediaUrl={msg.mediaUrl}
+                                  phoneNumberId={outboundPhoneNumberId}
+                                  templateName={msg.templateName}
+                                  templateLanguage={msg.templateLanguage}
+                                  contentPayload={msg.templateContent}
+                                />
+                                {!msg.templateComponents.some(
+                                  (component: any) =>
+                                    !!component?.text ||
+                                    (Array.isArray(component?.buttons) && component.buttons.length > 0) ||
+                                    !!component?.example?.header_handle?.length,
+                                ) && (
+                                    <div className="text">{messageText || "Template message sent"}</div>
+                                  )}
+                                {failed && (
+                                  <div className="error-box">
+                                    <strong>Failed</strong>
+                                    {msg.errorCode ? ` (#${msg.errorCode})` : ""}{" "}
+                                    {getErrorMessage(msg)}
+                                  </div>
                                 )}
-                              </div>
-                            </div>
-                          );
-                        })()
-                      )
-                    );
-                  })()}
-
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Input Section with File Attachment */}
-                <div className="relative w-full px-5 py-4 shrink-0 bg-white dark:bg-gray-900">
-                  {/* Previews Container - Fixed Height */}
-                  <div className="mb-3 min-h-0">
-                    {/* File Preview */}
-                    {selectedFile && (
-                      <div className="mb-2 flex items-center gap-2 bg-blue-50 dark:bg-gray-700 rounded-lg p-3 border border-blue-200 dark:border-blue-600">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            📎 {selectedFile.name}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {(selectedFile.size / 1024).toFixed(2)} KB
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSelectedFile(null);
-                            if (fileInputRef.current) {
-                              fileInputRef.current.value = "";
-                            }
-                          }}
-                          className="text-red-500 hover:text-red-700 transition-colors"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Gallery Media Preview */}
-                    {selectedGalleryMedia && (
-                      <div className="mb-2 flex items-center gap-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 border border-purple-200 dark:border-purple-600">
-                        {selectedGalleryMedia.type?.startsWith("image/") ? (
-                          <img
-                            src={selectedGalleryMedia.url}
-                            alt={selectedGalleryMedia.name}
-                            className="w-12 h-12 object-cover rounded"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-purple-100 dark:bg-purple-800 rounded flex items-center justify-center">
-                            <FileText className="w-6 h-6 text-purple-500" />
+                                <div className={`meta ${failed ? "error" : ""}`}>
+                                  <span className="time">
+                                    {new Date(msg.createdAt).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                  <span className={`status ${msg.status === "read" || msg.status === "delivered" ? "sent" : ""}`}>
+                                    <MessageStatus
+                                      status={msg.status}
+                                      direction={msg.direction}
+                                      error={msg.errorMessage || msg.error || null}
+                                      errorCode={msg.errorCode || null}
+                                      readAt={(msg as any).readAt}
+                                      deliveredAt={(msg as any).deliveredAt}
+                                      failedAt={(msg as any).failedAt || (msg as any).failed_at}
+                                    />
+                                  </span>
+                                </div>
+                              </>
+                            ) : getButtonMessageContent(msg) ? (
+                              (() => {
+                                const btnContent = getButtonMessageContent(msg)!;
+                                return (
+                                  <>
+                                    <div className="template-body">{btnContent.text}</div>
+                                    {btnContent.buttons.map((btn: string, i: number) => (
+                                      <a key={i} className="template-button" href="#">
+                                        {btn}
+                                      </a>
+                                    ))}
+                                    {failed && (
+                                      <div className="error-box">
+                                        <strong>Failed</strong>
+                                        {msg.errorCode ? ` (#${msg.errorCode})` : ""}{" "}
+                                        {getErrorMessage(msg)}
+                                      </div>
+                                    )}
+                                    <div className={`meta ${failed ? "error" : ""}`}>
+                                      <span className="time">
+                                        {new Date(msg.createdAt).toLocaleTimeString([], {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                      <span className={`status ${msg.status === "read" || msg.status === "delivered" ? "sent" : ""}`}>
+                                        <MessageStatus
+                                          status={msg.status}
+                                          direction={msg.direction}
+                                          error={msg.errorMessage || msg.error || null}
+                                          errorCode={msg.errorCode || null}
+                                          readAt={(msg as any).readAt}
+                                          deliveredAt={(msg as any).deliveredAt}
+                                          failedAt={(msg as any).failedAt || (msg as any).failed_at}
+                                        />
+                                      </span>
+                                    </div>
+                                  </>
+                                );
+                              })()
+                            ) : msg.type === "interactive" ? (
+                              <>
+                                <div className="flex items-center gap-2 mb-1 text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                  {isOutgoing ? "Sent Button Option" : "Clicked Button"}
+                                </div>
+                                <div className="inline-flex items-center px-4 py-2 border-2 border-blue-500/20 dark:border-blue-500/40 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 font-semibold text-sm rounded-xl select-none shadow-sm">
+                                  {messageText}
+                                </div>
+                                {failed && (
+                                  <div className="error-box">
+                                    <strong>Failed</strong>
+                                    {msg.errorCode ? ` (#${msg.errorCode})` : ""}{" "}
+                                    {getErrorMessage(msg)}
+                                  </div>
+                                )}
+                                <div className={`meta ${failed ? "error" : ""}`}>
+                                  <span className="time">
+                                    {new Date(msg.createdAt).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                  <span className={`status ${msg.status === "read" || msg.status === "delivered" ? "sent" : ""}`}>
+                                    <MessageStatus
+                                      status={msg.status}
+                                      direction={msg.direction}
+                                      error={msg.errorMessage || msg.error || null}
+                                      errorCode={msg.errorCode || null}
+                                      readAt={(msg as any).readAt}
+                                      deliveredAt={(msg as any).deliveredAt}
+                                      failedAt={(msg as any).failedAt || (msg as any).failed_at}
+                                    />
+                                  </span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                {msg.mediaUrl && (
+                                  <div className="message-media mb-2">
+                                    {msg.messageType === "image" || msg.mediaType?.startsWith("image/") ? (
+                                      <img
+                                        src={msg.mediaUrl}
+                                        alt="Sent image"
+                                        className="max-w-70 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => window.open(msg.mediaUrl!, "_blank")}
+                                      />
+                                    ) : msg.messageType === "video" || msg.mediaType?.startsWith("video/") ? (
+                                      <video src={msg.mediaUrl} controls className="max-w-70 rounded-lg" />
+                                    ) : msg.messageType === "audio" || msg.mediaType?.startsWith("audio/") ? (
+                                      <audio src={msg.mediaUrl} controls className="max-w-70" />
+                                    ) : (
+                                      <a
+                                        href={msg.mediaUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-3 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                      >
+                                        <FileText className="w-8 h-8 text-orange-500" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">Document</p>
+                                          <p className="text-xs text-blue-600">Click to download</p>
+                                        </div>
+                                      </a>
+                                    )}
+                                  </div>
+                                )}
+                                {messageText && !messageText.startsWith("[") ? (
+                                  <div className="text">{messageText}</div>
+                                ) : !msg.mediaUrl ? (
+                                  <div className="text opacity-70">
+                                    {isOutgoing ? "Message sent" : "Message received"}
+                                  </div>
+                                ) : null}
+                                {failed && (
+                                  <div className="error-box">
+                                    <strong>Failed</strong>
+                                    {msg.errorCode ? ` (#${msg.errorCode})` : ""}{" "}
+                                    {getErrorMessage(msg)}
+                                  </div>
+                                )}
+                                <div className={`meta ${failed ? "error" : ""}`}>
+                                  <span className="time">
+                                    {new Date(msg.createdAt).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                  <span className={`status ${msg.status === "read" || msg.status === "delivered" ? "sent" : ""}`}>
+                                    <MessageStatus
+                                      status={msg.status}
+                                      direction={msg.direction}
+                                      error={msg.errorMessage || msg.error || null}
+                                      errorCode={msg.errorCode || null}
+                                      readAt={(msg as any).readAt}
+                                      deliveredAt={(msg as any).deliveredAt}
+                                      failedAt={(msg as any).failedAt || (msg as any).failed_at}
+                                    />
+                                  </span>
+                                </div>
+                              </>
+                            )}
                           </div>
-                        )}
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {selectedGalleryMedia.name}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            From Gallery • {selectedGalleryMedia.size}
-                          </p>
                         </div>
-                        <button
-                          onClick={() => setSelectedGalleryMedia(null)}
-                          className="text-red-500 hover:text-red-700 transition-colors"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
+                      );
+                    })()
+                  )
+                );
+              })()}
 
-                    {/* Audio Recording Preview */}
-                    {audioBlob && (
-                      <div className="mb-2 flex items-center gap-2 bg-blue-50 dark:bg-gray-700 rounded-lg p-3 border border-blue-200 dark:border-blue-600">
-                        <div className="flex-1 flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                            <Mic size={16} className="text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              Voice Message
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              Duration: {formatTime(recordingTime)}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setAudioBlob(null);
-                            setRecordingTime(0);
-                          }}
-                          className="text-red-500 hover:text-red-700 transition-colors"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
+              <div ref={messagesEndRef} />
+            </div>
 
-                    {/* Recording Indicator */}
-                    {isRecording && (
-                      <div className="mb-2 flex items-center justify-between gap-2 bg-red-50 dark:bg-red-900/20 rounded-lg p-3 border border-red-200 dark:border-red-600">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                          <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                            Recording... {formatTime(recordingTime)}
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={cancelRecording}
-                            className="px-3 py-1 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={stopRecording}
-                            className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
-                          >
-                            Stop
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Input Bar - Fixed Position */}
-                  <div className="flex items-center gap-3 bg-white dark:bg-gray-800 rounded-full px-4 py-3 shadow-md border-2 border-blue-300 dark:border-blue-500">
-                    {/* Hidden File Input */}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      className="hidden"
-                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
-                      onChange={handleFileSelect}
-                    />
-
-                    {/* Attachment Button & Menu */}
-                    <div className="relative">
-                      <Paperclip
-                        size={20}
-                        onClick={() => isWindowOpenFromAPI && setShowAttachMenu(!showAttachMenu)}
-                        className={`attach-button ${iconJumpAnimation} ${isWindowOpenFromAPI
-                          ? "text-blue-600 cursor-pointer hover:text-blue-700"
-                          : "text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-60"
-                          }`}
-                      />
-
-                      {showAttachMenu && (
-                        <div className="attach-menu absolute bottom-12 left-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-blue-200 dark:border-blue-600 p-2 w-48 z-50 space-y-1">
-                          <button
-                            onClick={() => {
-                              fileInputRef.current?.click();
-                              setShowAttachMenu(false);
-                            }}
-                            className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
-                          >
-                            <span className="text-lg">📷</span>
-                            <span>Upload File</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setShowAttachMenu(false);
-                              setShowGalleryPicker(true);
-                            }}
-                            className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
-                          >
-                            <Image size={18} className="text-purple-500" />
-                            <span>From Gallery</span>
-                          </button>
-                        </div>
-                      )}
+            {/* Input Section with File Attachment */}
+            <div className="relative w-full px-5 py-4 shrink-0 bg-white dark:bg-gray-900">
+              {/* Previews Container - Fixed Height */}
+              <div className="mb-3 min-h-0">
+                {/* File Preview */}
+                {selectedFile && (
+                  <div className="mb-2 flex items-center gap-2 bg-blue-50 dark:bg-gray-700 rounded-lg p-3 border border-blue-200 dark:border-blue-600">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        📎 {selectedFile.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {(selectedFile.size / 1024).toFixed(2)} KB
+                      </p>
                     </div>
-
-                    {/* Template Button */}
-                    <div className="chat-icon-btn">
-                      <button
-                        type="button"
-                        onClick={() => setShowTemplateSelector(true)}
-                        className="text-slate-500 dark:text-slate-300 hover:text-blue-500 transition-colors"
-                      >
-                        <FileText size={20} />
-                      </button>
-                    </div>
-
-                    {/* Text Input */}
-                    <input
-                      type="text"
-                      {...register("message")}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSend();
+                    <button
+                      onClick={() => {
+                        setSelectedFile(null);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = "";
                         }
                       }}
-                      placeholder={isWindowOpenFromAPI ? "Type a message" : "Window closed"}
-                      className="message-input flex-1 bg-transparent outline-none text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                      disabled={isRecording || !isWindowOpenFromAPI}
-                    />
+                      className="text-red-500 hover:text-red-700 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
 
-                    {/* Send Button / Mic */}
-                    {messageValue.trim() ||
-                      selectedFile ||
-                      audioBlob ||
-                      selectedGalleryMedia ? (
-                      <button
-                        onClick={handleSend}
-                        disabled={
-                          sendMessageMutation.isPending ||
-                          isSendingMedia ||
-                          !isWindowOpenFromAPI
-                        }
-                        className="btn-primary p-2 rounded-full transition-transform hover:scale-110 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {sendMessageMutation.isPending || isSendingMedia ? (
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Send size={18} className="text-white" />
-                        )}
-                      </button>
+                {/* Gallery Media Preview */}
+                {selectedGalleryMedia && (
+                  <div className="mb-2 flex items-center gap-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 border border-purple-200 dark:border-purple-600">
+                    {selectedGalleryMedia.type?.startsWith("image/") ? (
+                      <img
+                        src={selectedGalleryMedia.url}
+                        alt={selectedGalleryMedia.name}
+                        className="w-12 h-12 object-cover rounded"
+                      />
                     ) : (
-                      <div className="relative group">
-                        <button
-                          onClick={() => {
-                            if (!isWindowOpenFromAPI) return;
-                            if (isRecording) stopRecording();
-                            else startRecording();
-                          }}
-                          disabled={!isWindowOpenFromAPI}
-                          className={`w-10 h-10 flex items-center justify-center rounded-full shadow-sm transition-all duration-200 ${!isWindowOpenFromAPI
-                            ? "bg-gray-200 dark:bg-gray-600 text-gray-400 cursor-not-allowed opacity-60"
-                            : isRecording
-                              ? "bg-red-500 text-white animate-pulse"
-                              : "bg-white text-blue-700 dark:bg-gray-700 border border-blue-600 dark:border-blue-600 hover:bg-blue-600 hover:text-white"
-                            }`}
-                        >
-                          <Mic size={18} />
-                        </button>
-                        <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-blue-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
-                          {!isWindowOpenFromAPI ? "Please wait for 24H to reply" : isRecording ? "Stop Recording" : "Voice Message"}
-                        </span>
+                      <div className="w-12 h-12 bg-purple-100 dark:bg-purple-800 rounded flex items-center justify-center">
+                        <FileText className="w-6 h-6 text-purple-500" />
                       </div>
                     )}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {selectedGalleryMedia.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        From Gallery • {selectedGalleryMedia.size}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setSelectedGalleryMedia(null)}
+                      className="text-red-500 hover:text-red-700 transition-colors"
+                    >
+                      ✕
+                    </button>
                   </div>
-                </div>
+                )}
+
+                {/* Audio Recording Preview */}
+                {audioBlob && (
+                  <div className="mb-2 flex items-center gap-2 bg-blue-50 dark:bg-gray-700 rounded-lg p-3 border border-blue-200 dark:border-blue-600">
+                    <div className="flex-1 flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                        <Mic size={16} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          Voice Message
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Duration: {formatTime(recordingTime)}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setAudioBlob(null);
+                        setRecordingTime(0);
+                      }}
+                      className="text-red-500 hover:text-red-700 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                {/* Recording Indicator */}
+                {isRecording && (
+                  <div className="mb-2 flex items-center justify-between gap-2 bg-red-50 dark:bg-red-900/20 rounded-lg p-3 border border-red-200 dark:border-red-600">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                        Recording... {formatTime(recordingTime)}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={cancelRecording}
+                        className="px-3 py-1 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={stopRecording}
+                        className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+                      >
+                        Stop
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Input Bar - Fixed Position */}
+              <div className="flex items-center gap-3 bg-white dark:bg-gray-800 rounded-full px-4 py-3 shadow-md border-2 border-blue-300 dark:border-blue-500">
+                {/* Hidden File Input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                  onChange={handleFileSelect}
+                />
+
+                {/* Attachment Button & Menu */}
+                <div className="relative">
+                  <Paperclip
+                    size={20}
+                    onClick={() => isWindowOpenFromAPI && setShowAttachMenu(!showAttachMenu)}
+                    className={`attach-button ${iconJumpAnimation} ${isWindowOpenFromAPI
+                      ? "text-blue-600 cursor-pointer hover:text-blue-700"
+                      : "text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-60"
+                      }`}
+                  />
+
+                  {showAttachMenu && (
+                    <div className="attach-menu absolute bottom-12 left-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-blue-200 dark:border-blue-600 p-2 w-48 z-50 space-y-1">
+                      <button
+                        onClick={() => {
+                          fileInputRef.current?.click();
+                          setShowAttachMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
+                      >
+                        <span className="text-lg">📷</span>
+                        <span>Upload File</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowAttachMenu(false);
+                          setShowGalleryPicker(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
+                      >
+                        <Image size={18} className="text-purple-500" />
+                        <span>From Gallery</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Template Button */}
+                <div className="chat-icon-btn">
+                  <button
+                    type="button"
+                    onClick={() => setShowTemplateSelector(true)}
+                    className="text-slate-500 dark:text-slate-300 hover:text-blue-500 transition-colors"
+                  >
+                    <FileText size={20} />
+                  </button>
+                </div>
+
+                {/* Text Input */}
+                <input
+                  type="text"
+                  {...register("message")}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder={"Type a message"}
+                  className="message-input flex-1 bg-transparent outline-none text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={isRecording}
+                />
+
+                {/* Send Button / Mic */}
+                {messageValue.trim() ||
+                  selectedFile ||
+                  audioBlob ||
+                  selectedGalleryMedia ? (
+                  <button
+                    onClick={handleSend}
+                    disabled={
+                      sendMessageMutation.isPending ||
+                      isSendingMedia ||
+                      !isWindowOpenFromAPI
+                    }
+                    className="btn-primary p-2 rounded-full transition-transform hover:scale-110 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {sendMessageMutation.isPending || isSendingMedia ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Send size={18} className="text-white" />
+                    )}
+                  </button>
+                ) : (
+                  <div className="relative group">
+                    <button
+                      onClick={() => {
+                        if (!isWindowOpenFromAPI) return;
+                        if (isRecording) stopRecording();
+                        else startRecording();
+                      }}
+                      disabled={!isWindowOpenFromAPI}
+                      className={`w-10 h-10 flex items-center justify-center rounded-full shadow-sm transition-all duration-200 ${!isWindowOpenFromAPI
+                        ? "bg-gray-200 dark:bg-gray-600 text-gray-400 cursor-not-allowed opacity-60"
+                        : isRecording
+                          ? "bg-red-500 text-white animate-pulse"
+                          : "bg-white text-blue-700 dark:bg-gray-700 border border-blue-600 dark:border-blue-600 hover:bg-blue-600 hover:text-white"
+                        }`}
+                    >
+                      <Mic size={18} />
+                    </button>
+                    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-blue-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
+                      {!isWindowOpenFromAPI ? "Please wait for 24H to reply" : isRecording ? "Stop Recording" : "Voice Message"}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
+        )}
+      </div>
 
       {/* FAQ Flow Component */}
       {showFAQFlow && selectedContact && (

@@ -9,7 +9,7 @@ import Providers from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Surefy Console',
+  title: 'Chotu',
   description: 'WhatsApp Business API Management',
   icons: {
     icon: '/images/logo/logo.jpeg',
