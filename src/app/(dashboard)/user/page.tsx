@@ -34,7 +34,7 @@ export default function UserPage() {
             setLoading(true);
 
             const response = await api.get(
-                `/users?page=${page}&limit=${limit}`
+                `/admin/companies/user?role=user&page=${page}&limit=${limit}`
             );
 
             let userList: User[] = [];
@@ -46,7 +46,7 @@ export default function UserPage() {
                 if (Array.isArray(response)) {
                     userList = response;
                     totalItemsCount = response.length;
-                } 
+                }
                 // Case 2: Response has a success/data wrapper
                 else {
                     const dataPayload = response.data;
@@ -96,7 +96,7 @@ export default function UserPage() {
         try {
 
             await api.delete(
-                `/users/${id}`
+                `/admin/companies/user/${id}`
             );
 
             setUsers((prev) =>

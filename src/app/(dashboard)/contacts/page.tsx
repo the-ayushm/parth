@@ -11,7 +11,7 @@ import Alert from '@/components/ui/Alert';
 import Modal from '@/components/ui/Modal';
 import Toast from '@/components/ui/Toast';
 import Tabs from '@/components/ui/Tabs';
-import { Plus, Upload, Tag, List, Eye, Search, Trash2, Clock, CheckCircle } from 'lucide-react';
+import { Plus, Upload, Tag, List, Eye, Pencil, Search, Trash2, Clock, CheckCircle } from 'lucide-react';
 import { Contact } from '@/types';
 import { format } from 'date-fns';
 import api from '@/lib/api';
@@ -248,6 +248,26 @@ export default function ContactsPage() {
       ),
     },
     {
+      key: 'assigned_to',
+      header: 'Tags',
+      render: (row) => (
+        <div className="flex flex-wrap gap-1">
+          {row.tags && row.tags.length > 0 ? (
+            row.tags.slice(0, 2).map((tag) => (
+              <Badge key={tag.id} variant="default" style={{ backgroundColor: tag.color }}>
+                {tag.name}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-sm text-gray-400">No tags</span>
+          )}
+          {row.tags && row.tags.length > 2 && (
+            <Badge variant="default">+{row.tags.length - 2}</Badge>
+          )}
+        </div>
+      ),
+    },
+    {
       key: 'is_valid',
       header: 'Status',
       render: (row) => (
@@ -284,6 +304,7 @@ export default function ContactsPage() {
       align: 'right',
       render: (row) => (
         <div className="flex items-center justify-end gap-2">
+          {/* View */}
           <Button
             size="sm"
             variant="ghost"
@@ -294,19 +315,36 @@ export default function ContactsPage() {
           >
             <Eye className="h-4 w-4" />
           </Button>
+
+          {/* Edit */}
           <Button
             size="sm"
             variant="ghost"
             onClick={(e) => {
               e.stopPropagation();
-              handleDeleteContact(row.id, row.name || row.phone_number);
+              router.push(`/contacts/${row.id}?mode=edit`);
+            }}
+          >
+            <Pencil className="h-4 w-4 text-blue-600" />
+          </Button>
+
+          {/* Delete */}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteContact(
+                row.id,
+                row.name || row.phone_number
+              );
             }}
           >
             <Trash2 className="h-4 w-4 text-red-600" />
           </Button>
         </div>
       ),
-    },
+    }
   ];
 
   const tabs = [

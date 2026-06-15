@@ -29,7 +29,9 @@ export default function ContactDetailPage() {
     email: '',
     notes: '',
     tag_ids: [] as string[],
+    assigned_to: '' as string
   });
+  const [users, setUsers] = useState<any[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -37,6 +39,17 @@ export default function ContactDetailPage() {
       fetchTags();
     }
   }, [id]);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get('/admin/companies/user?role=user');
+
+      setUsers(response.data.data || response.data);
+    } catch (err) {
+      console.error('Failed to fetch users', err);
+    }
+  };
+
 
   const fetchContact = async () => {
     try {
@@ -49,6 +62,7 @@ export default function ContactDetailPage() {
         email: data.email || '',
         notes: data.notes || '',
         tag_ids: data.tags?.map((t: ContactTag) => t.id) || [],
+        assigned_to: data.assigned_to || ''
       });
     } catch (err: any) {
       setError(err.message || 'Failed to load contact details');
@@ -77,7 +91,7 @@ export default function ContactDetailPage() {
         name: formData.name,
         email: formData.email,
         notes: formData.notes,
-        tag_ids: formData.tag_ids,
+        assigned_to: formData.assigned_to || '',
       });
 
       setSuccess('Contact updated successfully');
@@ -101,6 +115,14 @@ export default function ContactDetailPage() {
         : [...prev.tag_ids, tagId],
     }));
   };
+
+  useEffect(() => {
+    if (id) {
+      fetchContact();
+      fetchTags();
+      fetchUsers();
+    }
+  }, [id]);
 
   if (loading) {
     return (
@@ -155,7 +177,7 @@ export default function ContactDetailPage() {
           {/* Main Information */}
           <div className="lg:col-span-2 space-y-6">
             <Card>
-              <CardHeader title="Contact Information" icon={User} />
+              <CardHeader title="Edit Contact Information" icon={User} />
               <div className="p-6 space-y-4">
                 <div>
                   <label className="text-sm font-medium text-gray-500">Phone Number</label>
@@ -193,36 +215,29 @@ export default function ContactDetailPage() {
               </div>
             </Card>
 
-            {/* Tags */}
+            {/* Assigned User */}
             <Card>
-              <CardHeader title="Tags" icon={TagIcon} />
+              <CardHeader title="Assigned User" icon={User} />
               <div className="p-6">
-                <div className="flex flex-wrap gap-2">
-                  {tags.map((tag) => (
-                    <label
-                      key={tag.id}
-                      className={`
-                        inline-flex items-center px-3 py-2 rounded-lg cursor-pointer border-2 transition-colors
-                        ${formData.tag_ids.includes(tag.id)
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                        }
-                      `}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.tag_ids.includes(tag.id)}
-                        onChange={() => handleTagToggle(tag.id)}
-                        className="sr-only"
-                      />
-                      <span
-                        className="w-3 h-3 rounded-full mr-2"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      <span className="text-sm font-medium text-gray-900">{tag.name}</span>
-                    </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select User
+                </label>
+
+                <select
+                  value={formData.assigned_to}
+                  onChange={(e) =>
+                    handleChange('assigned_to', e.target.value)
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                >
+                  <option value="">Unassigned</option>
+
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} ({user.phone})
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
             </Card>
           </div>

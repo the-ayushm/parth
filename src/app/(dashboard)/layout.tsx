@@ -252,7 +252,7 @@ export default function DashboardLayout({
               </Link>
 
 
-              <Link
+              {/* <Link
                 href="/credits"
                 onClick={() => setSidebarOpen(false)}
                 className={clsx(
@@ -264,13 +264,13 @@ export default function DashboardLayout({
               >
                 <Wallet className="h-5 w-5" />
                 <span>Credits</span>
-              </Link>
+              </Link> */}
 
 
 
 
 
-              <Link
+              {/* <Link
                 href="/webhooks"
                 onClick={() => setSidebarOpen(false)}
                 className={clsx(
@@ -282,14 +282,14 @@ export default function DashboardLayout({
               >
                 <Webhook className="h-5 w-5" />
                 <span>Webhooks</span>
-              </Link>
+              </Link> */}
 
 
             </>
           )}
 
 
-          <Link
+          {/* <Link
             href="/templates"
             onClick={() => setSidebarOpen(false)}
             className={clsx(
@@ -315,12 +315,12 @@ export default function DashboardLayout({
           >
             <Send className="h-5 w-5" />
             <span>Campaigns</span>
-          </Link>
+          </Link> */}
 
 
           {isCompanyUser && (
             <>
-              <Link
+              {/* <Link
                 href="/jobs"
                 onClick={() => setSidebarOpen(false)}
                 className={clsx(
@@ -332,7 +332,7 @@ export default function DashboardLayout({
               >
                 <Briefcase className="h-5 w-5" />
                 <span>Jobs</span>
-              </Link>
+              </Link> */}
 
 
 
@@ -366,19 +366,19 @@ export default function DashboardLayout({
             <span>Profile</span>
           </Link>
 
-          <Link
-            href="/developer"
+          {/* <Link
+            href="/contacts"
             onClick={() => setSidebarOpen(false)}
             className={clsx(
               'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
-              isActive('/developer')
+              isActive('/contacts')
                 ? 'bg-primary-50 text-primary-600 font-medium'
                 : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
             )}
           >
-            <Code className="h-5 w-5" />
-            <span>Developer</span>
-          </Link>
+            <Users className="h-5 w-5" />
+            <span>Contacts</span>
+          </Link> */}
         </nav>
       </aside>
 

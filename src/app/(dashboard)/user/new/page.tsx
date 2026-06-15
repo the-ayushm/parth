@@ -43,11 +43,12 @@ export default function CreateUserPage() {
             const payload = {
                 ...formData,
                 role: formData.role.toLowerCase(),
+                user_role: "staff",
                 status: formData.status.toLowerCase(),
             };
 
             const response = await api.post(
-                '/users',
+                '/admin/companies/user',
                 payload
             );
 
