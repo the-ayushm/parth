@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Search, FileText, Send, Upload } from "lucide-react";
 import FormattedText from "./FormattedText";
 import { getTemplateVariables, TemplateVariable } from "@/lib/template-utils";
-import { UserStatus } from "@prisma/client";
+// import { UserStatus } from "@prisma/client";
 import api from "@/lib/api";
 
 interface Template {
@@ -60,19 +60,21 @@ function isFormValid(
   return true;
 }
 
-function mapMetaStatusToEnum(status: string): UserStatus {
-  switch (status.toUpperCase()) {
-    case "APPROVED":
-      return "ACTIVE"; // Map Meta APPROVED to your enum ACTIVE
-    case "REJECTED":
-      return "REJECTED";
-    case "ARCHIVED":
-    case "DELETED":
-      return "INACTIVE";
-    default:
-      return "INACTIVE"; // fallback
-  }
-}
+// function mapMetaStatusToEnum(status: string): UserStatus {
+//   switch (status.toUpperCase()) {
+//     case "APPROVED":
+//       return "ACTIVE"; // Map Meta APPROVED to your enum ACTIVE
+//     case "REJECTED":
+//       return "REJECTED";
+//     case "ARCHIVED":
+//     case "DELETED":
+//       return "INACTIVE";
+//     default:
+//       return "INACTIVE"; // fallback
+//   }
+// }
+
+
 export function TemplateSelectorModal({
   isOpen,
   onClose,
