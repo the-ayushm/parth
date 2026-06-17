@@ -22,7 +22,8 @@ import {
   Menu,
   X,
   Contact,
-  PhoneIcon
+  PhoneIcon,
+  MessageCircle
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
@@ -206,6 +207,20 @@ export default function DashboardLayout({
               >
                 <Smartphone className="h-5 w-5" />
                 <span>WABA Accounts</span>
+              </Link>
+
+              <Link
+                href="/customer-query"
+                onClick={() => setSidebarOpen(false)}
+                className={clsx(
+                  'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
+                  isActive('/customer-query')
+                    ? 'bg-primary-50 text-primary-600 font-medium'
+                    : 'text-gray-700 hover:bg-primary-50 hover:text-primary-600'
+                )}
+              >
+                <MessageCircle className="h-5 w-5" />
+                <span>Customer Query</span>
               </Link>
 
               <Link

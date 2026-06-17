@@ -5,8 +5,9 @@ import { useState, useEffect, useRef } from "react";
 import { X, Search, FileText, Send, Upload } from "lucide-react";
 import FormattedText from "./FormattedText";
 import { getTemplateVariables, TemplateVariable } from "@/lib/template-utils";
-type UserStatus = "ACTIVE" | "INACTIVE" | "REJECTED";
-import { ngrokAxiosInstance } from "@/lib/axiosInstance";
+import { UserStatus } from "@prisma/client";
+import api from "@/lib/api";
+
 interface Template {
   id: number | string;
   name: string;
@@ -142,14 +143,20 @@ export function TemplateSelectorModal({
           ? localStorage.getItem("console_access_token")
           : null;
 
-      const res = await ngrokAxiosInstance.get("/admin/templates?status=APPROVED");
-      const payload = res.data;
+      const res = await fetch(
+        "https://hostapi.soft7.in/v1/admin/templates?status=APPROVED",
+        {
+          method: "GET",
+          credentials: "omit",
+          headers: {
+            ...(consoleToken ? { Authorization: `Bearer ${consoleToken}` } : {}),
+            "ngrok-skip-browser-warning": "true",
+          },
+        },
+      );
 
-      const rawTemplates = Array.isArray(payload?.data)
-        ? payload.data
-        : Array.isArray(payload)
-          ? payload
-          : [];
+      const payload = await res.json();
+      const rawTemplates = payload?.data || [];
 
       const mappedTemplates = rawTemplates.map((template: any) => ({
         id: template.id || template.template_id,
@@ -246,7 +253,9 @@ export function TemplateSelectorModal({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await ngrokAxiosInstance.post("/admin/campaigns/upload-media", formData);
+      formData.append("phone_number_id", phoneNumberId || "762352490286897");
+      formData.append("type", headerType);
+      const res = await api.post("/admin/campaigns/upload-media", formData);
 
       const data = res.data;
 
@@ -255,7 +264,7 @@ export function TemplateSelectorModal({
       }
 
       const mediaId =
-        data?.data?.media_id || data?.url || data?.mediaUrl || data?.id;
+        data?.data?.media_url || data?.data?.media_id || data?.url || data?.mediaUrl || data?.id;
 
       let localPreviewUrl: string | null = null;
       try {
@@ -369,11 +378,10 @@ export function TemplateSelectorModal({
                   <div
                     key={template.id}
                     onClick={() => handleTemplateSelect(template)}
-                    className={`px-3 py-2.5 rounded-lg cursor-pointer border text-sm transition-colors ${
-                      selectedTemplate?.id === template.id
-                        ? "bg-teal-50 dark:bg-teal-900/30 border-teal-400/70 dark:border-teal-500 text-teal-900 dark:text-teal-100"
-                        : "bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-900 dark:text-white"
-                    }`}
+                    className={`px-3 py-2.5 rounded-lg cursor-pointer border text-sm transition-colors ${selectedTemplate?.id === template.id
+                      ? "bg-teal-50 dark:bg-teal-900/30 border-teal-400/70 dark:border-teal-500 text-teal-900 dark:text-teal-100"
+                      : "bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-900 dark:text-white"
+                      }`}
                   >
                     <div className="font-medium">{template.name}</div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-300 mt-0.5">
@@ -392,7 +400,7 @@ export function TemplateSelectorModal({
               <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
                 Preview
               </h3>
-              {selectedTemplate ? 
+              {selectedTemplate ?
                 <>
                   <p className="text-xs text-slate-600 dark:text-slate-300 transition-opacity duration-200">
                     Sent to{" "}
@@ -433,16 +441,16 @@ export function TemplateSelectorModal({
                             const mediaUrl =
                               format === "IMAGE"
                                 ? headerPreviewUrls.IMAGE ||
-                                  resolveHeaderPreviewUrl(variables["headerImageUrl"]) ||
-                                  component.example?.header_handle?.[0]
+                                resolveHeaderPreviewUrl(variables["headerImageUrl"]) ||
+                                component.example?.header_handle?.[0]
                                 : format === "VIDEO"
                                   ? headerPreviewUrls.VIDEO ||
-                                    resolveHeaderPreviewUrl(variables["headerVideoUrl"]) ||
-                                    component.example?.header_handle?.[0]
+                                  resolveHeaderPreviewUrl(variables["headerVideoUrl"]) ||
+                                  component.example?.header_handle?.[0]
                                   : format === "DOCUMENT"
                                     ? headerPreviewUrls.DOCUMENT ||
-                                      resolveHeaderPreviewUrl(variables["headerDocumentUrl"]) ||
-                                      component.example?.header_handle?.[0]
+                                    resolveHeaderPreviewUrl(variables["headerDocumentUrl"]) ||
+                                    component.example?.header_handle?.[0]
                                     : component.example?.header_handle?.[0];
                             if (component.format === "IMAGE" && mediaUrl) {
                               return (
@@ -593,249 +601,249 @@ export function TemplateSelectorModal({
                           (c.format || "").toUpperCase(),
                         ),
                     )) && (
-                    <div className="mt-6 px-4 pb-4">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-2">
-                        Fill variables
-                      </h3>
-                      {selectedTemplate.components?.some(
-                        (c) =>
-                          c.type === "HEADER" &&
-                          ["IMAGE", "VIDEO", "DOCUMENT"].includes(
-                            (c.format || "").toUpperCase(),
-                          ),
-                      ) &&
-                        selectedTemplate.headerMode === "dynamic" && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mb-2 bg-amber-50 dark:bg-amber-900/20 px-2 py-1.5 rounded">
-                          Dynamic header: Provide a public HTTPS URL or upload a file for each send.
-                        </p>
-                      )}
-                      <div className="space-y-3">
+                      <div className="mt-6 px-4 pb-4">
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-2">
+                          Fill variables
+                        </h3>
                         {selectedTemplate.components?.some(
                           (c) =>
                             c.type === "HEADER" &&
-                            (c.format || "").toUpperCase() === "IMAGE",
+                            ["IMAGE", "VIDEO", "DOCUMENT"].includes(
+                              (c.format || "").toUpperCase(),
+                            ),
                         ) &&
-                          selectedTemplate.headerMode !== "fixed" && (
-                          <div>
-                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                              Header Image (URL or upload)
-                            </label>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={variables["headerImageUrl"] || ""}
-                                onChange={(e) =>
-                                  setVariables({
-                                    ...variables,
-                                    headerImageUrl: e.target.value,
-                                  })
-                                }
-                                className="flex-1 px-3 py-2 border border-blue-200 dark:border-blue-700 rounded-lg bg-blue-50/30 dark:bg-slate-900 text-sm"
-                                placeholder="https://example.com/image.jpg"
-                              />
-                              <input
-                                ref={headerImageFileRef}
-                                type="file"
-                                accept="image/jpeg,image/png"
-                                className="hidden"
-                                onChange={(e) =>
-                                  handleHeaderFileUpload(
-                                    e,
-                                    "IMAGE",
-                                    "headerImageUrl"
-                                  )
-                                }
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  headerImageFileRef.current?.click()
-                                }
-                                disabled={uploadingHeader === "IMAGE"}
-                                className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 flex items-center gap-1"
-                              >
-                                {uploadingHeader === "IMAGE" ? (
-                                  <>...</>
-                                ) : (
-                                  <>
-                                    <Upload size={14} />
-                                    Upload
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {selectedTemplate.components?.some(
-                          (c) =>
-                            c.type === "HEADER" &&
-                            (c.format || "").toUpperCase() === "VIDEO",
-                        ) &&
-                          selectedTemplate.headerMode !== "fixed" && (
-                          <div>
-                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                              Header Video (URL or upload)
-                            </label>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={variables["headerVideoUrl"] || ""}
-                                onChange={(e) =>
-                                  setVariables({
-                                    ...variables,
-                                    headerVideoUrl: e.target.value,
-                                  })
-                                }
-                                className="flex-1 px-3 py-2 border border-blue-200 dark:border-blue-700 rounded-lg bg-blue-50/30 dark:bg-slate-900 text-sm"
-                                placeholder="https://example.com/video.mp4"
-                              />
-                              <input
-                                ref={headerVideoFileRef}
-                                type="file"
-                                accept="video/mp4,video/3gpp"
-                                className="hidden"
-                                onChange={(e) =>
-                                  handleHeaderFileUpload(
-                                    e,
-                                    "VIDEO",
-                                    "headerVideoUrl"
-                                  )
-                                }
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  headerVideoFileRef.current?.click()
-                                }
-                                disabled={uploadingHeader === "VIDEO"}
-                                className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 flex items-center gap-1"
-                              >
-                                {uploadingHeader === "VIDEO" ? (
-                                  <>...</>
-                                ) : (
-                                  <>
-                                    <Upload size={14} />
-                                    Upload
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {selectedTemplate.components?.some(
-                          (c) =>
-                            c.type === "HEADER" &&
-                            (c.format || "").toUpperCase() === "DOCUMENT",
-                        ) &&
-                          selectedTemplate.headerMode !== "fixed" && (
-                          <>
-                            <div>
-                              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                Header Document (URL or upload)
-                              </label>
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={variables["headerDocumentUrl"] || ""}
-                                  onChange={(e) =>
-                                    setVariables({
-                                      ...variables,
-                                      headerDocumentUrl: e.target.value,
-                                    })
-                                  }
-                                  className="flex-1 px-3 py-2 border border-blue-200 dark:border-blue-700 rounded-lg bg-blue-50/30 dark:bg-slate-900 text-sm"
-                                  placeholder="https://example.com/document.pdf"
-                                />
-                                <input
-                                  ref={headerDocumentFileRef}
-                                  type="file"
-                                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf"
-                                  className="hidden"
-                                  onChange={(e) =>
-                                    handleHeaderFileUpload(
-                                      e,
-                                      "DOCUMENT",
-                                      "headerDocumentUrl"
-                                    )
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    headerDocumentFileRef.current?.click()
-                                  }
-                                  disabled={uploadingHeader === "DOCUMENT"}
-                                  className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 flex items-center gap-1"
-                                >
-                                  {uploadingHeader === "DOCUMENT" ? (
-                                    <>...</>
-                                  ) : (
-                                    <>
-                                      <Upload size={14} />
-                                      Upload
-                                    </>
-                                  )}
-                                </button>
+                          selectedTemplate.headerMode === "dynamic" && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mb-2 bg-amber-50 dark:bg-amber-900/20 px-2 py-1.5 rounded">
+                              Dynamic header: Provide a public HTTPS URL or upload a file for each send.
+                            </p>
+                          )}
+                        <div className="space-y-3">
+                          {selectedTemplate.components?.some(
+                            (c) =>
+                              c.type === "HEADER" &&
+                              (c.format || "").toUpperCase() === "IMAGE",
+                          ) &&
+                            selectedTemplate.headerMode !== "fixed" && (
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                  Header Image (URL or upload)
+                                </label>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={variables["headerImageUrl"] || ""}
+                                    onChange={(e) =>
+                                      setVariables({
+                                        ...variables,
+                                        headerImageUrl: e.target.value,
+                                      })
+                                    }
+                                    className="flex-1 px-3 py-2 border border-blue-200 dark:border-blue-700 rounded-lg bg-blue-50/30 dark:bg-slate-900 text-sm"
+                                    placeholder="https://example.com/image.jpg"
+                                  />
+                                  <input
+                                    ref={headerImageFileRef}
+                                    type="file"
+                                    accept="image/jpeg,image/png"
+                                    className="hidden"
+                                    onChange={(e) =>
+                                      handleHeaderFileUpload(
+                                        e,
+                                        "IMAGE",
+                                        "headerImageUrl"
+                                      )
+                                    }
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      headerImageFileRef.current?.click()
+                                    }
+                                    disabled={uploadingHeader === "IMAGE"}
+                                    className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 flex items-center gap-1"
+                                  >
+                                    {uploadingHeader === "IMAGE" ? (
+                                      <>...</>
+                                    ) : (
+                                      <>
+                                        <Upload size={14} />
+                                        Upload
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                            <div>
+                            )}
+                          {selectedTemplate.components?.some(
+                            (c) =>
+                              c.type === "HEADER" &&
+                              (c.format || "").toUpperCase() === "VIDEO",
+                          ) &&
+                            selectedTemplate.headerMode !== "fixed" && (
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                  Header Video (URL or upload)
+                                </label>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={variables["headerVideoUrl"] || ""}
+                                    onChange={(e) =>
+                                      setVariables({
+                                        ...variables,
+                                        headerVideoUrl: e.target.value,
+                                      })
+                                    }
+                                    className="flex-1 px-3 py-2 border border-blue-200 dark:border-blue-700 rounded-lg bg-blue-50/30 dark:bg-slate-900 text-sm"
+                                    placeholder="https://example.com/video.mp4"
+                                  />
+                                  <input
+                                    ref={headerVideoFileRef}
+                                    type="file"
+                                    accept="video/mp4,video/3gpp"
+                                    className="hidden"
+                                    onChange={(e) =>
+                                      handleHeaderFileUpload(
+                                        e,
+                                        "VIDEO",
+                                        "headerVideoUrl"
+                                      )
+                                    }
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      headerVideoFileRef.current?.click()
+                                    }
+                                    disabled={uploadingHeader === "VIDEO"}
+                                    className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 flex items-center gap-1"
+                                  >
+                                    {uploadingHeader === "VIDEO" ? (
+                                      <>...</>
+                                    ) : (
+                                      <>
+                                        <Upload size={14} />
+                                        Upload
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          {selectedTemplate.components?.some(
+                            (c) =>
+                              c.type === "HEADER" &&
+                              (c.format || "").toUpperCase() === "DOCUMENT",
+                          ) &&
+                            selectedTemplate.headerMode !== "fixed" && (
+                              <>
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    Header Document (URL or upload)
+                                  </label>
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="text"
+                                      value={variables["headerDocumentUrl"] || ""}
+                                      onChange={(e) =>
+                                        setVariables({
+                                          ...variables,
+                                          headerDocumentUrl: e.target.value,
+                                        })
+                                      }
+                                      className="flex-1 px-3 py-2 border border-blue-200 dark:border-blue-700 rounded-lg bg-blue-50/30 dark:bg-slate-900 text-sm"
+                                      placeholder="https://example.com/document.pdf"
+                                    />
+                                    <input
+                                      ref={headerDocumentFileRef}
+                                      type="file"
+                                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf"
+                                      className="hidden"
+                                      onChange={(e) =>
+                                        handleHeaderFileUpload(
+                                          e,
+                                          "DOCUMENT",
+                                          "headerDocumentUrl"
+                                        )
+                                      }
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        headerDocumentFileRef.current?.click()
+                                      }
+                                      disabled={uploadingHeader === "DOCUMENT"}
+                                      className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 flex items-center gap-1"
+                                    >
+                                      {uploadingHeader === "DOCUMENT" ? (
+                                        <>...</>
+                                      ) : (
+                                        <>
+                                          <Upload size={14} />
+                                          Upload
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    Document filename (optional)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={
+                                      variables["headerDocumentFilename"] || ""
+                                    }
+                                    onChange={(e) =>
+                                      setVariables({
+                                        ...variables,
+                                        headerDocumentFilename: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm"
+                                    placeholder="document.pdf"
+                                  />
+                                </div>
+                              </>
+                            )}
+                          {templateVars.map((variable) => (
+                            <div key={`${variable.component}:${variable.name}`}>
                               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                Document filename (optional)
+                                {variable.component === "HEADER"
+                                  ? "Header Variable"
+                                  : "Variable"}{" "}
+                                {"{{"}
+                                {variable.name}
+                                {"}}"}
                               </label>
                               <input
                                 type="text"
-                                value={
-                                  variables["headerDocumentFilename"] || ""
-                                }
+                                value={variables[variable.name] || ""}
                                 onChange={(e) =>
                                   setVariables({
                                     ...variables,
-                                    headerDocumentFilename: e.target.value,
+                                    [variable.name]: e.target.value,
                                   })
                                 }
-                                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm"
-                                placeholder="document.pdf"
+                                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100"
+                                placeholder={`Enter value for {{${variable.name}}}`}
                               />
                             </div>
-                          </>
-                        )}
-                        {templateVars.map((variable) => (
-                          <div key={`${variable.component}:${variable.name}`}>
-                            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                              {variable.component === "HEADER"
-                                ? "Header Variable"
-                                : "Variable"}{" "}
-                              {"{{"}
-                              {variable.name}
-                              {"}}"}
-                            </label>
-                            <input
-                              type="text"
-                              value={variables[variable.name] || ""}
-                              onChange={(e) =>
-                                setVariables({
-                                  ...variables,
-                                  [variable.name]: e.target.value,
-                                })
-                              }
-                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100"
-                              placeholder={`Enter value for {{${variable.name}}}`}
-                            />
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </>
-              : (
-                <div className="max-w-md mx-auto">
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 shadow-sm overflow-hidden min-h-70 flex items-center justify-center">
-                    <p className="text-sm text-slate-500 dark:text-slate-200">
-                      Select a template to preview
-                    </p>
+                : (
+                  <div className="max-w-md mx-auto">
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 shadow-sm overflow-hidden min-h-70 flex items-center justify-center">
+                      <p className="text-sm text-slate-500 dark:text-slate-200">
+                        Select a template to preview
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
 
             {/* Send Button - Always visible, fixed at bottom */}

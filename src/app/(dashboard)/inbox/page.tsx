@@ -13,7 +13,6 @@ import { TemplateMessage } from "@/components/TemplateMessage";
 import { GalleryPickerModal } from "@/components/GalleryPickerModal";
 import "./inbox.css";
 import { Search } from "lucide-react";
-import api from "@/lib/api";
 
 import { useEffect, useState, useRef } from "react";
 import {
@@ -42,8 +41,9 @@ import {
   getTemplateVariables,
 } from "@/lib/template-utils";
 import { useForm } from "react-hook-form";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import { useSocket } from "@/hooks/useSocket";
+import api from "@/lib/api";
 
 /* ---------- Types ---------- */
 interface Contact {
@@ -121,9 +121,9 @@ interface MessageFormInputs {
   message: string;
 }
 
-const PRIMARY_COLOR = "bg-blue-600";
-const PRIMARY_TEXT = "text-blue-600";
-const PRIMARY_HOVER = "hover:bg-blue-700";
+const PRIMARY_COLOR = "bg-emerald-600";
+const PRIMARY_TEXT = "text-emerald-600";
+const PRIMARY_HOVER = "hover:bg-emerald-700";
 const DEBUG_INBOX = process.env.NEXT_PUBLIC_DEBUG_INBOX === "true";
 const CONTACTS_PAGE_LIMIT = 20;
 
@@ -563,8 +563,7 @@ export default function InboxPage() {
   const [showTimeRange, setShowTimeRange] = useState(false);
   const [activeIcon, setActiveIcon] = useState("CRM");
   const [filterPhoneNumbers, setFilterPhoneNumbers] = useState<string[]>([]);
-  const selectedTag = null;
-  const setSelectedTag = (val) => { };
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [windowTick, setWindowTick] = useState(0);
   const dateRef = useRef<HTMLDivElement>(null);
@@ -701,10 +700,35 @@ export default function InboxPage() {
     setShowFilterMenu(false);
   };
 
-  /* sideBarMenuIcon removed */
+  const sideBarMenuIcon = [
+    {
+      id: "CRM",
+      icon: <Users size={22} className="text-white cursor-pointer" />,
+      label: "CRM",
+    },
+    {
+      id: "Order Date",
+      icon: <CalendarDays size={15} className="text-white cursor-pointer" />,
+      label: "Order Date",
+    },
+    {
+      id: "Group",
+      icon: <Layers size={22} className="text-white cursor-pointer" />,
+      label: "Group",
+    },
+    {
+      id: "Tag",
+      icon: <Tag size={22} className="text-white cursor-pointer" />,
+      label: "Tag",
+    },
+    {
+      id: "Schedule",
+      icon: <Bell size={22} className="text-white cursor-pointer" />,
+      label: "Schedule",
+    },
+  ];
 
-  const showTagMenu = false;
-  const setShowTagMenu = (val) => { };
+  const [showTagMenu, setShowTagMenu] = useState(false);
 
   const reminders: any[] = [];
 
@@ -766,8 +790,36 @@ export default function InboxPage() {
     });
   }, [phoneNumbers, selectedPhone]);
 
-  // ✅ Fetch contact tags - Disabled
-  const contactTags = [];
+  // ✅ Fetch contact tags from ngrok API
+  const { data: contactTags = [] } = useQuery({
+    queryKey: ["contact-tags"],
+    queryFn: async () => {
+      // Try the contacts tags endpoint first, then fall back to /admin/tags
+      let res;
+      try {
+        res = await api.get("/admin/contacts/tags");
+      } catch (err) {
+        try {
+          res = await api.get("/admin/contacts/tags");
+        } catch (err2) {
+          console.warn('Inbox: failed to fetch contact tags from both /admin/contacts/tags and /admin/contacts/tags', err2);
+          return [];
+        }
+      }
+      const payload = res.data;
+      const rawList = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.data?.data)
+            ? payload.data.data
+            : Array.isArray(payload?.results)
+              ? payload.results
+              : [];
+
+      return rawList.map((t: any) => ({ id: String(t?.id ?? t), name: t?.name ?? t?.label ?? t?.name ?? String(t) }));
+    },
+  });
 
   const outboundPhoneNumberId = String(
     selectedPhoneMeta?.phone_number_id ||
@@ -1086,7 +1138,7 @@ export default function InboxPage() {
           status: m.status || "",
           createdAt: m.createdAt || m.created_at || m.timestamp || new Date().toISOString(),
           type: resolvedType,
-          mediaUrl: m.mediaUrl || m.media_url || null,
+          mediaUrl: m.mediaUrl || m.media_url || m.content?.media_url || m.content?.url || null,
           mediaType: m.mediaType || m.media_type || null,
           messageType: resolvedType || null,
           whatsappMessageId: m.wamid || m.whatsappMessageId || null,
@@ -1493,92 +1545,92 @@ export default function InboxPage() {
   };
 
   /* ---------- Send message ---------- */
-  const handleSend = async () => {
-    if (!selectedContact) return;
-    if (
-      !messageValue.trim() &&
-      !selectedFile &&
-      !audioBlob &&
-      !selectedGalleryMedia
-    )
-      return;
+  // const handleSend = async () => {
+  //   if (!selectedContact) return;
+  //   if (
+  //     !messageValue.trim() &&
+  //     !selectedFile &&
+  //     !audioBlob &&
+  //     !selectedGalleryMedia
+  //   )
+  //     return;
 
-    // Handle media sending via ngrok API
-    if (selectedFile || audioBlob || selectedGalleryMedia) {
-      setIsSendingMedia(true);
-      try {
-        const formData = new FormData();
-        formData.append("to", normalizePhone(selectedContact.phone || ""));
-        formData.append("phone_number_id", outboundPhoneNumberId);
-        if (messageValue.trim()) {
-          formData.append("caption", messageValue.trim());
-        }
+  //   // Handle media sending via ngrok API
+  //   if (selectedFile || audioBlob || selectedGalleryMedia) {
+  //     setIsSendingMedia(true);
+  //     try {
+  //       const formData = new FormData();
+  //       formData.append("to", normalizePhone(selectedContact.phone || ""));
+  //       formData.append("phone_number_id", outboundPhoneNumberId);
+  //       if (messageValue.trim()) {
+  //         formData.append("caption", messageValue.trim());
+  //       }
 
-        if (selectedGalleryMedia) {
-          formData.append("galleryMediaId", selectedGalleryMedia.id.toString());
-        } else if (selectedFile) {
-          formData.append("file", selectedFile);
-        } else if (audioBlob) {
-          const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, {
-            type: "audio/webm",
-          });
-          formData.append("file", audioFile);
-        }
+  //       if (selectedGalleryMedia) {
+  //         formData.append("galleryMediaId", selectedGalleryMedia.id.toString());
+  //       } else if (selectedFile) {
+  //         formData.append("file", selectedFile);
+  //       } else if (audioBlob) {
+  //         const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, {
+  //           type: "audio/webm",
+  //         });
+  //         formData.append("file", audioFile);
+  //       }
 
-        const token = getConsoleToken();
-        const response = await fetch(
-          "https://hostapi.soft7.in/v1/admin/messages/send-media",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            body: formData,
-          }
-        );
+  //       const token = getConsoleToken();
+  //       const response = await fetch(
+  //         "https://hostapi.soft7.in/v1/admin/messages/send-media",
+  //         {
+  //           method: "POST",
+  //           headers: {
+  //             Authorization: `Bearer ${token}`,
+  //           },
+  //           body: formData,
+  //         }
+  //       );
 
-        const data = await response.json();
+  //       const data = await response.json();
 
-        if (data.success) {
-          toast.success("Media sent successfully!");
-          queryClient.invalidateQueries({
-            queryKey: ["messages", selectedContact.id],
-          });
-          queryClient.invalidateQueries({ queryKey: ["contacts"] });
-          reset();
-          setSelectedFile(null);
-          setAudioBlob(null);
-          setRecordingTime(0);
-          setSelectedGalleryMedia(null);
-        } else {
-          toast.error(data.message || "Failed to send media");
-        }
-      } catch (error: any) {
-        console.error("Failed to send media:", error);
-        toast.error(error?.response?.data?.message || "Failed to send media");
-      } finally {
-        setIsSendingMedia(false);
-      }
-      return;
-    }
+  //       if (data.success) {
+  //         toast.success("Media sent successfully!");
+  //         queryClient.invalidateQueries({
+  //           queryKey: ["messages", selectedContact.id],
+  //         });
+  //         queryClient.invalidateQueries({ queryKey: ["contacts"] });
+  //         reset();
+  //         setSelectedFile(null);
+  //         setAudioBlob(null);
+  //         setRecordingTime(0);
+  //         setSelectedGalleryMedia(null);
+  //       } else {
+  //         toast.error(data.message || "Failed to send media");
+  //       }
+  //     } catch (error: any) {
+  //       console.error("Failed to send media:", error);
+  //       toast.error(error?.response?.data?.message || "Failed to send media");
+  //     } finally {
+  //       setIsSendingMedia(false);
+  //     }
+  //     return;
+  //   }
 
-    // Text-only message
-    try {
-      const outgoingText = messageValue.trim();
-      await sendMessageMutation.mutateAsync({
-        contactId: selectedContact.id,
-        text: outgoingText,
-        message: outgoingText,
-        content: outgoingText,
-        type: "text",
-        message_type: "text",
-        phone_number_id: outboundPhoneNumberId,
-        recipient: normalizeLeadNumber(selectedContact.phone || ""),
-      });
-    } catch {
-      // Error toast is already handled in mutation onError.
-    }
-  };
+  //   // Text-only message
+  //   try {
+  //     const outgoingText = messageValue.trim();
+  //     await sendMessageMutation.mutateAsync({
+  //       contactId: selectedContact.id,
+  //       text: outgoingText,
+  //       message: outgoingText,
+  //       content: outgoingText,
+  //       type: "text",
+  //       message_type: "text",
+  //       phone_number_id: outboundPhoneNumberId,
+  //       recipient: normalizeLeadNumber(selectedContact.phone || ""),
+  //     });
+  //   } catch {
+  //     // Error toast is already handled in mutation onError.
+  //   }
+  // };
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -1646,7 +1698,7 @@ export default function InboxPage() {
     const isDelivered = status === "delivered" || status === "DELIVERED" || !!deliveredAt || isRead;
 
     if (isRead) {
-      return <CheckCheck size={14} className="text-blue-500 ml-0.5" />;
+      return <CheckCheck size={14} className="text-emerald-500 ml-0.5" />;
     }
     if (isDelivered) {
       return <CheckCheck size={14} className="text-slate-500 ml-0.5" />;
@@ -1680,7 +1732,7 @@ export default function InboxPage() {
   }: ContactItemProps) => (
     <div
       onClick={onClick}
-      className={`contact-item flex flex-col cursor-pointer border-b border-blue-200 dark:border-blue-700 ${isSelected ? "selected" : "bg-transparent"
+      className={`contact-item flex flex-col cursor-pointer border-b border-emerald-200 dark:border-emerald-700 ${isSelected ? "selected" : "bg-transparent"
         }`}
     >
       {/* Main contact row */}
@@ -1725,7 +1777,7 @@ export default function InboxPage() {
 
           {/* Last Message Time */}
           {contact.lastMessageTime && (
-            <span className={`text-[10px] font-medium leading-none ${(contact.unreadCount ?? 0) > 0 ? "text-blue-500" : "text-gray-500 dark:text-gray-400"
+            <span className={`text-[10px] font-medium leading-none ${(contact.unreadCount ?? 0) > 0 ? "text-emerald-500" : "text-gray-500 dark:text-gray-400"
               }`}>
               {new Date(contact.lastMessageTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
@@ -1773,16 +1825,16 @@ export default function InboxPage() {
 
   return (
     <div
-      className={`inbox-page h-[calc(100vh-32px)] md:h-[calc(100vh-64px)] rounded-[1.2rem] shadow-xl overflow-hidden border border-blue-500 dark:border-blue-500 relative w-full flex lg:grid lg:grid-cols-[380px_1fr] lg:grid-rows-1`}
+      className={`inbox-page h-[calc(100vh-32px)] md:h-[calc(100vh-64px)] rounded-[1.2rem] shadow-xl overflow-hidden border border-emerald-500 dark:border-emerald-500 relative w-full flex lg:grid lg:grid-cols-[380px_1fr] lg:grid-rows-1`}
     >
       {/* Contacts Sidebar */}
       <div className={`contacts-sidebar flex-col lg:w-[380px] ${selectedContact ? "hidden lg:flex" : "flex"}`}>
         {/* Contacts Sidebar */}
         <div
-          className="contacts-sidebar w-full flex flex-col h-full border-r-2 border-blue-300 dark:border-blue-700"
+          className="contacts-sidebar w-full flex flex-col h-full border-r-2 border-emerald-300 dark:border-emerald-700"
         >
           {/* Header Section */}
-          <div className="contacts-header bg-blue-600 text-white p-4 font-bold flex items-center justify-between relative border-b-2 border-blue-500 shadow-sm h-18 py-3.75 px-4">
+          <div className="contacts-header bg-emerald-600 text-white p-4 font-bold flex items-center justify-between relative border-b-2 border-emerald-500 shadow-sm h-18 py-3.75 px-4">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowSidebar(prev => !prev)}
@@ -1797,7 +1849,7 @@ export default function InboxPage() {
             <div className="relative ml-auto">
               <button
                 onClick={() => setShowInboxMenu(!showInboxMenu)}
-                className="p-2 rounded-full hover:bg-blue-500 transition-all"
+                className="p-2 rounded-full hover:bg-emerald-500 transition-all"
               >
                 <MoreVertical className="cursor-pointer text-white" />
               </button>
@@ -1806,7 +1858,7 @@ export default function InboxPage() {
               {showInboxMenu && (
                 <div
                   ref={inboxMenuRef}
-                  className="dropdown-menu absolute top-0 left-full ml-1 w-64 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded-lg shadow-lg z-50 p-3 space-y-2"
+                  className="dropdown-menu absolute top-0 left-full ml-1 w-64 bg-white dark:bg-gray-800 border border-emerald-600 dark:border-emerald-700 rounded-lg shadow-lg z-50 p-3 space-y-2"
                 >
                   {/* Unread Row */}
                   <div
@@ -1818,7 +1870,7 @@ export default function InboxPage() {
                           : "unreadTime",
                       )
                     }
-                    className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 px-2 py-1 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 dark:hover:text-white rounded"
+                    className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 px-2 py-1 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 dark:hover:text-white rounded"
                   >
                     Unread
                   </div>
@@ -1827,7 +1879,7 @@ export default function InboxPage() {
                   {activeSubMenu === "unreadTime" && unreadRef.current && (
                     <>
                       <div
-                        className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-48 space-y-2"
+                        className="absolute z-50 bg-white dark:bg-gray-800 border border-emerald-600 dark:border-emerald-700 rounded shadow-lg p-3 w-48 space-y-2"
                         style={{
                           top: unreadRef.current?.offsetTop,
                           left:
@@ -1842,14 +1894,14 @@ export default function InboxPage() {
                             setShowDatePicker(!showDatePicker);
                             setShowTimeRange(false);
                           }}
-                          className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                          className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
                         >
                           Date
                         </div>
 
                         {showDatePicker && dateRef.current && (
                           <div
-                            className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-56"
+                            className="absolute z-50 bg-white dark:bg-gray-800 border border-emerald-600 dark:border-emerald-700 rounded shadow-lg p-3 w-56"
                             style={{
                               top: (dateRef.current?.offsetTop ?? 0) + 5,
                               left:
@@ -1860,7 +1912,7 @@ export default function InboxPage() {
                           >
                             <input
                               type="date"
-                              className="w-full px-2 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 cursor-pointer"
+                              className="w-full px-2 py-2 text-sm border border-emerald-600 dark:border-emerald-700 rounded bg-white dark:bg-gray-700 cursor-pointer"
                             />
                           </div>
                         )}
@@ -1871,7 +1923,7 @@ export default function InboxPage() {
                             setShowTimeRange(!showTimeRange);
                             setShowDatePicker(false);
                           }}
-                          className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                          className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
                         >
                           Time
                         </div>
@@ -1886,7 +1938,7 @@ export default function InboxPage() {
                         ].map((label) => (
                           <div
                             key={label}
-                            className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                            className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
                           >
                             {label}
                           </div>
@@ -1895,7 +1947,7 @@ export default function InboxPage() {
 
                       {showTimeRange && timeRef.current && (
                         <div
-                          className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-62.5 min-w-62.5"
+                          className="absolute z-50 bg-white dark:bg-gray-800 border border-emerald-600 dark:border-emerald-700 rounded shadow-lg p-3 w-62.5 min-w-62.5"
                           style={{
                             top: timeRef.current?.offsetTop || 0,
                             left:
@@ -1906,7 +1958,7 @@ export default function InboxPage() {
                           }}
                         >
                           <div className="flex items-center justify-between gap-1 mb-2">
-                            <select className="w-25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 dark:text-white">
+                            <select className="w-25 px-1 py-1 text-xs border border-emerald-600 dark:border-emerald-700 rounded bg-white dark:bg-gray-700 dark:text-white">
                               {[...Array(12)]
                                 .map((_, i) =>
                                   i === 0 ? "12:00" : `${i}:00`,
@@ -1915,7 +1967,7 @@ export default function InboxPage() {
                                   <option key={time}>{time}</option>
                                 ))}
                             </select>
-                            <select className="w-26.25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
+                            <select className="w-26.25 px-1 py-1 text-xs border border-emerald-600 dark:border-emerald-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
                               {["AM", "PM"].map((meridian) => (
                                 <option key={meridian}>{meridian}</option>
                               ))}
@@ -1923,7 +1975,7 @@ export default function InboxPage() {
                           </div>
 
                           <div className="flex items-center justify-between gap-1">
-                            <select className="w-25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 dark:text-white">
+                            <select className="w-25 px-1 py-1 text-xs border border-emerald-600 dark:border-emerald-700 rounded bg-white dark:bg-gray-700 dark:text-white">
                               {[...Array(12)]
                                 .map((_, i) =>
                                   i === 0 ? "12:00" : `${i}:00`,
@@ -1932,7 +1984,7 @@ export default function InboxPage() {
                                   <option key={time}>{time}</option>
                                 ))}
                             </select>
-                            <select className="w-26.25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
+                            <select className="w-26.25 px-1 py-1 text-xs border border-emerald-600 dark:border-emerald-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
                               {["AM", "PM"].map((meridian) => (
                                 <option key={meridian}>{meridian}</option>
                               ))}
@@ -1952,13 +2004,13 @@ export default function InboxPage() {
                         setActiveSubMenu(null);
                         setShowInboxMenu(false);
                       }}
-                      className="dropdown-item w-full text-left text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                      className="dropdown-item w-full text-left text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
                     >
                       {label}
                     </button>
                   ))}
 
-                  <div className="border-t border-blue-600 dark:border-blue-700 my-2" />
+                  <div className="border-t border-emerald-600 dark:border-emerald-700 my-2" />
 
                   <div className="space-y-2">
                     <div
@@ -1970,7 +2022,7 @@ export default function InboxPage() {
                             : "assignedTo",
                         )
                       }
-                      className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                      className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
                     >
                       Assigned to
                     </div>
@@ -1990,7 +2042,7 @@ export default function InboxPage() {
                           <input
                             type="text"
                             placeholder="demo"
-                            className="w-48 px-3 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:hover:bg-blue-700 shadow-sm"
+                            className="w-48 px-3 py-2 text-sm border border-emerald-600 dark:border-emerald-700 rounded bg-white dark:hover:bg-emerald-700 shadow-sm"
                           />
                         </div>
                       )}
@@ -2004,7 +2056,7 @@ export default function InboxPage() {
                             : "phoneNumbers",
                         )
                       }
-                      className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                      className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
                     >
                       Phone number
                     </div>
@@ -2024,7 +2076,7 @@ export default function InboxPage() {
                           <input
                             type="text"
                             placeholder="number"
-                            className="w-48 px-3 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 shadow-sm"
+                            className="w-48 px-3 py-2 text-sm border border-emerald-600 dark:border-emerald-700 rounded bg-white dark:bg-gray-700 shadow-sm"
                           />
                         </div>
                       )}
@@ -2038,7 +2090,54 @@ export default function InboxPage() {
 
           {/* Search Bar + Filter Chips */}
           <div className="px-6 pt-4 pb-3 shrink-0">
+            {/* Top chips (All, CRM, Order Done, group) */}
+            <div className="mb-3 flex items-center gap-3 flex-wrap filter-chips">
+              {sideBarMenuIcon.map((it) => (
+                <div key={it.id} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (it.id === 'Tag') {
+                        setShowTagMenu((s) => !s);
+                      }
+                      setActiveIcon(it.id);
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border ${activeIcon === it.id ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700'}`}
+                  >
+                    {it.label}
+                  </button>
 
+                  {/* Tag dropdown when Tag icon clicked */}
+                  {it.id === 'Tag' && showTagMenu && Array.isArray(contactTags) && (
+                    <div className="absolute mt-2 left-0 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 shadow-lg z-60">
+                      {(contactTags as any[]).length === 0 && <div className="text-sm text-gray-500">No tags</div>}
+                      {(contactTags as any[]).map((tag: any) => (
+                        <button
+                          key={`dd-tag-${tag.id}`}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); console.log('Inbox: tag dropdown clicked', tag); setSelectedTag((s) => (s === String(tag.id) ? null : String(tag.id))); setShowTagMenu(false); }}
+                          className={`w-full text-left px-2 py-1 rounded text-sm ${selectedTag === String(tag.id) ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                        >
+                          {tag.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Inline tag chips (falls back if tag menu not used) */}
+              {Array.isArray(contactTags) && contactTags.length > 0 && contactTags.map((tag: any) => (
+                <button
+                  key={`tag-${tag.id}`}
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); console.log('Inbox: tag clicked', tag); setSelectedTag((s) => (s === String(tag.id) ? null : String(tag.id))); }}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border pointer-events-auto cursor-pointer ${selectedTag === String(tag.id) ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700'}`}
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </div>
 
             <div className="relative flex items-center gap-3">
               <div className="relative flex-1">
@@ -2056,7 +2155,7 @@ export default function InboxPage() {
                   className={`w-full p-2 bg-gray-50 dark:bg-gray-800
                         border border-gray-200 dark:border-gray-700 rounded-xl
                         text-gray-900 dark:text-white placeholder-gray-500
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 ${searchQuery.trim() ? "pl-4" : "pl-16"
+                        focus:outline-none focus:ring-2 focus:ring-emerald-500 ${searchQuery.trim() ? "pl-4" : "pl-16"
                     }`}
                 />
               </div>
@@ -2065,7 +2164,7 @@ export default function InboxPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowFilterMenu((s) => !s)}
-                  className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-blue-600"
+                  className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-emerald-600"
                   title="Filter conversations"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -2083,15 +2182,15 @@ export default function InboxPage() {
                 <div className="filter-dropdown absolute top-1/2 left-full ml-2 -translate-y-1/2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-3">
                   <div className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-2">Filter Conversations</div>
                   <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-blue-600">
+                    <label className="flex items-center gap-2 text-emerald-600">
                       <input type="checkbox" className="rounded" />
                       <span>Unread</span>
                     </label>
-                    <label className="flex items-center gap-2 text-blue-600">
+                    <label className="flex items-center gap-2 text-emerald-600">
                       <input type="checkbox" className="rounded" />
                       <span>Assigned</span>
                     </label>
-                    <label className="flex items-center gap-2 text-blue-600">
+                    <label className="flex items-center gap-2 text-emerald-600">
                       <input type="checkbox" className="rounded" />
                       <span>Unassigned</span>
                     </label>
@@ -2109,7 +2208,7 @@ export default function InboxPage() {
                         <button
                           key={id}
                           onClick={() => handlePhoneSelect(id)}
-                          className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+                          className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors ${isSelected ? 'bg-emerald-600 text-white' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
                         >
                           {disp}
                         </button>
@@ -2121,14 +2220,14 @@ export default function InboxPage() {
             </div>
 
             <div className="mt-2 flex items-center justify-between">
-              <p className="text-[11px] text-blue-600 dark:text-blue-400">
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
                 Showing {paginatedContacts.length} of {filteredContacts.length} contacts ({currentPage} of {totalPages})
               </p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Previous page"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2138,7 +2237,7 @@ export default function InboxPage() {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Next page"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2159,7 +2258,7 @@ export default function InboxPage() {
             }}
           >
             {loadingContacts && (
-              <p className="p-4 text-blue-600">Loading...</p>
+              <p className="p-4 text-emerald-600">Loading...</p>
             )}
             {paginatedContacts.map((c: any) => (
               <ContactItem
@@ -2185,7 +2284,7 @@ lg:relative lg:flex
   `}
       >
         {!selectedContact ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center text-blue-600 p-6">
+          <div className="flex-1 flex flex-col items-center justify-center text-center text-emerald-600 p-6">
             <MessageSquare
               size={60}
               className={`${PRIMARY_TEXT} ${iconJumpAnimation}`}
@@ -2198,7 +2297,7 @@ lg:relative lg:flex
           <div className="flex flex-col h-full overflow-hidden">
             {/* Chat Header */}
             <div
-              className={`contacts-header text-white p-4 flex justify-between items-center rounded-tr-2xl border-b-2 border-blue-300 dark:border-blue-600 shadow-md`}
+              className={`contacts-header text-white p-4 flex justify-between items-center rounded-tr-2xl border-b-2 border-emerald-300 dark:border-emerald-600 shadow-md`}
               style={{ height: "72px" }}
             >
               <div className="flex items-center gap-3">
@@ -2231,7 +2330,7 @@ lg:relative lg:flex
                           {headerName}
                         </span>
                         {showHeaderPhone ? (
-                          <span className="text-xs text-blue-200">
+                          <span className="text-xs text-emerald-200">
                             {headerPhone}
                           </span>
                         ) : null}
@@ -2246,33 +2345,33 @@ lg:relative lg:flex
                 <div className="relative group">
                   <Phone
                     size={18}
-                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
+                    className={`${iconJumpAnimation} hover:text-emerald-600 transition-colors duration-200`}
                   />
-                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-emerald-100 text-emerald-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-emerald-300 font-semibold transform group-hover:translate-y-0.5">
                     Audio call
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-emerald-300"></div>
                   </span>
                 </div>
 
                 <div className="relative group">
                   <Video
                     size={18}
-                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
+                    className={`${iconJumpAnimation} hover:text-emerald-600 transition-colors duration-200`}
                   />
-                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-emerald-100 text-emerald-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-emerald-300 font-semibold transform group-hover:translate-y-0.5">
                     Video call
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-emerald-300"></div>
                   </span>
                 </div>
 
                 <div className="relative group">
                   <button
                     onClick={() => setShowFAQFlow(!showFAQFlow)}
-                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
+                    className={`${iconJumpAnimation} hover:text-emerald-600 transition-colors duration-200`}
                   >
                     <MessageSquare size={18} />
                   </button>
-                  <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-blue-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
+                  <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-emerald-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
                     FAQ Bot
                   </span>
                 </div>
@@ -2280,11 +2379,11 @@ lg:relative lg:flex
                 <div className="relative group">
                   <MoreVertical
                     size={15}
-                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
+                    className={`${iconJumpAnimation} hover:text-emerald-600 transition-colors duration-200`}
                   />
-                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-emerald-100 text-emerald-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-emerald-300 font-semibold transform group-hover:translate-y-0.5">
                     Options
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-emerald-300"></div>
                   </span>
                 </div>
 
@@ -2294,20 +2393,20 @@ lg:relative lg:flex
             <div className="h-px w-full bg-gray-300 dark:bg-gray-700"></div>
 
             {/* 24-hour window banner */}
-            {/* {selectedContact && (
-                  <div
-                    className={`px-4 py-2 text-sm font-medium ${isWindowOpenFromAPI
-                        ? "bg-blue-500/20 text-blue-800 dark:text-blue-200"
-                        : "bg-amber-500/20 text-amber-800 dark:text-amber-200"
-                      }`}
-                  >
-                    {isWindowOpenFromAPI ? (
-                      <span>{windowState.remainingText} — You can send any message</span>
-                    ) : (
-                      <span>24h window closed — Send a template to re-engage</span>
-                    )}
-                  </div>
-                )} */}
+            {selectedContact && (
+              <div
+                className={`px-4 py-2 text-sm font-medium ${isWindowOpenFromAPI
+                  ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-200"
+                  : "bg-amber-500/20 text-amber-800 dark:text-amber-200"
+                  }`}
+              >
+                {isWindowOpenFromAPI ? (
+                  <span>{windowState.remainingText} — You can send any message</span>
+                ) : (
+                  <span>24h window closed — Send a template to re-engage</span>
+                )}
+              </div>
+            )}
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto chat-messages min-h-0">
@@ -2442,11 +2541,11 @@ lg:relative lg:flex
                               })()
                             ) : msg.type === "interactive" ? (
                               <>
-                                <div className="flex items-center gap-2 mb-1 text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                <div className="flex items-center gap-2 mb-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                   {isOutgoing ? "Sent Button Option" : "Clicked Button"}
                                 </div>
-                                <div className="inline-flex items-center px-4 py-2 border-2 border-blue-500/20 dark:border-blue-500/40 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 font-semibold text-sm rounded-xl select-none shadow-sm">
+                                <div className="inline-flex items-center px-4 py-2 border-2 border-emerald-500/20 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 font-semibold text-sm rounded-xl select-none shadow-sm">
                                   {messageText}
                                 </div>
                                 {failed && (
@@ -2501,7 +2600,7 @@ lg:relative lg:flex
                                         <FileText className="w-8 h-8 text-orange-500" />
                                         <div className="flex-1 min-w-0">
                                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate">Document</p>
-                                          <p className="text-xs text-blue-600">Click to download</p>
+                                          <p className="text-xs text-emerald-600">Click to download</p>
                                         </div>
                                       </a>
                                     )}
@@ -2559,7 +2658,7 @@ lg:relative lg:flex
               <div className="mb-3 min-h-0">
                 {/* File Preview */}
                 {selectedFile && (
-                  <div className="mb-2 flex items-center gap-2 bg-blue-50 dark:bg-gray-700 rounded-lg p-3 border border-blue-200 dark:border-blue-600">
+                  <div className="mb-2 flex items-center gap-2 bg-emerald-50 dark:bg-gray-700 rounded-lg p-3 border border-emerald-200 dark:border-emerald-600">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         📎 {selectedFile.name}
@@ -2615,9 +2714,9 @@ lg:relative lg:flex
 
                 {/* Audio Recording Preview */}
                 {audioBlob && (
-                  <div className="mb-2 flex items-center gap-2 bg-blue-50 dark:bg-gray-700 rounded-lg p-3 border border-blue-200 dark:border-blue-600">
+                  <div className="mb-2 flex items-center gap-2 bg-emerald-50 dark:bg-gray-700 rounded-lg p-3 border border-emerald-200 dark:border-emerald-600">
                     <div className="flex-1 flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center">
                         <Mic size={16} className="text-white" />
                       </div>
                       <div>
@@ -2659,7 +2758,7 @@ lg:relative lg:flex
                       </button>
                       <button
                         onClick={stopRecording}
-                        className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+                        className="px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors"
                       >
                         Stop
                       </button>
@@ -2669,7 +2768,7 @@ lg:relative lg:flex
               </div>
 
               {/* Input Bar - Fixed Position */}
-              <div className="flex items-center gap-3 bg-white dark:bg-gray-800 rounded-full px-4 py-3 shadow-md border-2 border-blue-300 dark:border-blue-500">
+              <div className="flex items-center gap-3 bg-white dark:bg-gray-800 rounded-full px-4 py-3 shadow-md border-2 border-emerald-300 dark:border-emerald-500">
                 {/* Hidden File Input */}
                 <input
                   ref={fileInputRef}
@@ -2685,19 +2784,19 @@ lg:relative lg:flex
                     size={20}
                     onClick={() => isWindowOpenFromAPI && setShowAttachMenu(!showAttachMenu)}
                     className={`attach-button ${iconJumpAnimation} ${isWindowOpenFromAPI
-                      ? "text-blue-600 cursor-pointer hover:text-blue-700"
+                      ? "text-emerald-600 cursor-pointer hover:text-emerald-700"
                       : "text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-60"
                       }`}
                   />
 
                   {showAttachMenu && (
-                    <div className="attach-menu absolute bottom-12 left-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-blue-200 dark:border-blue-600 p-2 w-48 z-50 space-y-1">
+                    <div className="attach-menu absolute bottom-12 left-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-emerald-200 dark:border-emerald-600 p-2 w-48 z-50 space-y-1">
                       <button
                         onClick={() => {
                           fileInputRef.current?.click();
                           setShowAttachMenu(false);
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-emerald-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
                       >
                         <span className="text-lg">📷</span>
                         <span>Upload File</span>
@@ -2708,7 +2807,7 @@ lg:relative lg:flex
                           setShowAttachMenu(false);
                           setShowGalleryPicker(true);
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-emerald-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
                       >
                         <Image size={18} className="text-purple-500" />
                         <span>From Gallery</span>
@@ -2722,7 +2821,7 @@ lg:relative lg:flex
                   <button
                     type="button"
                     onClick={() => setShowTemplateSelector(true)}
-                    className="text-slate-500 dark:text-slate-300 hover:text-blue-500 transition-colors"
+                    className="text-slate-500 dark:text-slate-300 hover:text-emerald-500 transition-colors"
                   >
                     <FileText size={20} />
                   </button>
@@ -2738,9 +2837,9 @@ lg:relative lg:flex
                       handleSend();
                     }
                   }}
-                  placeholder={"Type a message"}
+                  placeholder={isWindowOpenFromAPI ? "Type a message" : "Window closed"}
                   className="message-input flex-1 bg-transparent outline-none text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                  disabled={isRecording}
+                  disabled={isRecording || !isWindowOpenFromAPI}
                 />
 
                 {/* Send Button / Mic */}
@@ -2755,7 +2854,7 @@ lg:relative lg:flex
                       isSendingMedia ||
                       !isWindowOpenFromAPI
                     }
-                    className="btn-primary p-2 rounded-full transition-transform hover:scale-110 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                    className="btn-primary p-2 rounded-full transition-transform hover:scale-110 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
                   >
                     {sendMessageMutation.isPending || isSendingMedia ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2776,12 +2875,12 @@ lg:relative lg:flex
                         ? "bg-gray-200 dark:bg-gray-600 text-gray-400 cursor-not-allowed opacity-60"
                         : isRecording
                           ? "bg-red-500 text-white animate-pulse"
-                          : "bg-white text-blue-700 dark:bg-gray-700 border border-blue-600 dark:border-blue-600 hover:bg-blue-600 hover:text-white"
+                          : "bg-white text-emerald-700 dark:bg-gray-700 border border-emerald-600 dark:border-emerald-600 hover:bg-emerald-600 hover:text-white"
                         }`}
                     >
                       <Mic size={18} />
                     </button>
-                    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-blue-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
+                    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-emerald-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
                       {!isWindowOpenFromAPI ? "Please wait for 24H to reply" : isRecording ? "Stop Recording" : "Voice Message"}
                     </span>
                   </div>
