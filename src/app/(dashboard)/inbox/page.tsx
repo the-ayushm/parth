@@ -1545,92 +1545,86 @@ export default function InboxPage() {
   };
 
   /* ---------- Send message ---------- */
-  // const handleSend = async () => {
-  //   if (!selectedContact) return;
-  //   if (
-  //     !messageValue.trim() &&
-  //     !selectedFile &&
-  //     !audioBlob &&
-  //     !selectedGalleryMedia
-  //   )
-  //     return;
+  const handleSend = async () => {
+    if (!selectedContact) return;
+    if (
+      !messageValue.trim() &&
+      !selectedFile &&
+      !audioBlob &&
+      !selectedGalleryMedia
+    )
+      return;
 
-  //   // Handle media sending via ngrok API
-  //   if (selectedFile || audioBlob || selectedGalleryMedia) {
-  //     setIsSendingMedia(true);
-  //     try {
-  //       const formData = new FormData();
-  //       formData.append("to", normalizePhone(selectedContact.phone || ""));
-  //       formData.append("phone_number_id", outboundPhoneNumberId);
-  //       if (messageValue.trim()) {
-  //         formData.append("caption", messageValue.trim());
-  //       }
+    // Handle media sending via ngrok API
+    if (selectedFile || audioBlob || selectedGalleryMedia) {
+      setIsSendingMedia(true);
+      try {
+        const formData = new FormData();
+        formData.append("to", normalizePhone(selectedContact.phone || ""));
+        formData.append("phone_number_id", outboundPhoneNumberId);
+        if (messageValue.trim()) {
+          formData.append("caption", messageValue.trim());
+        }
 
-  //       if (selectedGalleryMedia) {
-  //         formData.append("galleryMediaId", selectedGalleryMedia.id.toString());
-  //       } else if (selectedFile) {
-  //         formData.append("file", selectedFile);
-  //       } else if (audioBlob) {
-  //         const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, {
-  //           type: "audio/webm",
-  //         });
-  //         formData.append("file", audioFile);
-  //       }
+        if (selectedGalleryMedia) {
+          formData.append("galleryMediaId", selectedGalleryMedia.id.toString());
+        } else if (selectedFile) {
+          formData.append("file", selectedFile);
+        } else if (audioBlob) {
+          const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, {
+            type: "audio/webm",
+          });
+          formData.append("file", audioFile);
+        }
 
-  //       const token = getConsoleToken();
-  //       const response = await fetch(
-  //         "https://hostapi.soft7.in/v1/admin/messages/send-media",
-  //         {
-  //           method: "POST",
-  //           headers: {
-  //             Authorization: `Bearer ${token}`,
-  //           },
-  //           body: formData,
-  //         }
-  //       );
+        const token = getConsoleToken();
+        const response = await api.post(
+          "/admin/messages/send",
+          formData
+        );
 
-  //       const data = await response.json();
+        const data = await response.json();
 
-  //       if (data.success) {
-  //         toast.success("Media sent successfully!");
-  //         queryClient.invalidateQueries({
-  //           queryKey: ["messages", selectedContact.id],
-  //         });
-  //         queryClient.invalidateQueries({ queryKey: ["contacts"] });
-  //         reset();
-  //         setSelectedFile(null);
-  //         setAudioBlob(null);
-  //         setRecordingTime(0);
-  //         setSelectedGalleryMedia(null);
-  //       } else {
-  //         toast.error(data.message || "Failed to send media");
-  //       }
-  //     } catch (error: any) {
-  //       console.error("Failed to send media:", error);
-  //       toast.error(error?.response?.data?.message || "Failed to send media");
-  //     } finally {
-  //       setIsSendingMedia(false);
-  //     }
-  //     return;
-  //   }
+        if (data.success) {
+          toast.success("Media sent successfully!");
+          queryClient.invalidateQueries({
+            queryKey: ["messages", selectedContact.id],
+          });
+          queryClient.invalidateQueries({ queryKey: ["contacts"] });
+          reset();
+          setSelectedFile(null);
+          setAudioBlob(null);
+          setRecordingTime(0);
+          setSelectedGalleryMedia(null);
+        } else {
+          toast.error(data.message || "Failed to send media");
+        }
+      } catch (error: any) {
+        console.error("Failed to send media:", error);
+        toast.error(error?.response?.data?.message || "Failed to send media");
+      } finally {
+        setIsSendingMedia(false);
+      }
+      return;
+    }
 
-  //   // Text-only message
-  //   try {
-  //     const outgoingText = messageValue.trim();
-  //     await sendMessageMutation.mutateAsync({
-  //       contactId: selectedContact.id,
-  //       text: outgoingText,
-  //       message: outgoingText,
-  //       content: outgoingText,
-  //       type: "text",
-  //       message_type: "text",
-  //       phone_number_id: outboundPhoneNumberId,
-  //       recipient: normalizeLeadNumber(selectedContact.phone || ""),
-  //     });
-  //   } catch {
-  //     // Error toast is already handled in mutation onError.
-  //   }
-  // };
+    // Text-only message
+    try {
+      const outgoingText = messageValue.trim();
+      await sendMessageMutation.mutateAsync({
+        contactId: selectedContact.id,
+        text: outgoingText,
+        message: outgoingText,
+        content: outgoingText,
+        type: "text",
+        message_type: "text",
+        phone_number_id: outboundPhoneNumberId,
+        recipient: normalizeLeadNumber(selectedContact.phone || ""),
+      });
+    } catch {
+      // Error toast is already handled in mutation onError.
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
