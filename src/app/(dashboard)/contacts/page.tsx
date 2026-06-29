@@ -1,7 +1,13 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+
 import { useRouter, useSearchParams } from 'next/navigation';
+
+import { Plus, Upload, Tag, List, Eye, Pencil, Search, Trash2, Clock, CheckCircle, ChevronDown } from 'lucide-react';
+
+import { format } from 'date-fns';
+
 import { Card, CardHeader } from '@/components/ui/Card';
 import Table, { Column } from '@/components/ui/Table';
 import Button from '@/components/ui/Button';
@@ -11,9 +17,7 @@ import Alert from '@/components/ui/Alert';
 import Modal from '@/components/ui/Modal';
 import Toast from '@/components/ui/Toast';
 import Tabs from '@/components/ui/Tabs';
-import { Plus, Upload, Tag, List, Eye, Pencil, Search, Trash2, Clock, CheckCircle } from 'lucide-react';
 import { Contact } from '@/types';
-import { format } from 'date-fns';
 import api from '@/lib/api';
 
 export default function ContactsPage() {
@@ -39,6 +43,15 @@ export default function ContactsPage() {
   const isMountedRef = useRef(true);
   const importPollInterval = useRef<NodeJS.Timeout | null>(null);
 
+  // New state variables for selection & assignment
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedAssignUserId, setSelectedAssignUserId] = useState<string | null>(null);
+  const [userSearchQuery, setUserSearchQuery] = useState<string>('');
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [showAssignSuccess, setShowAssignSuccess] = useState(false);
+
   useEffect(() => {
     isMountedRef.current = true;
 
@@ -52,12 +65,25 @@ export default function ContactsPage() {
     }
 
     fetchContacts();
-    return () => {
+
+    
+return () => {
       isMountedRef.current = false;
+
       if (importPollInterval.current) {
         clearInterval(importPollInterval.current);
       }
     };
+  }, [searchQuery, filterValid, page]);
+
+  // Fetch users list once on mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  // Reset checkboxes when filters, search query, or page change
+  useEffect(() => {
+    setSelectedContactIds([]);
   }, [searchQuery, filterValid, page]);
 
   // Poll import job status
@@ -79,6 +105,7 @@ export default function ContactsPage() {
 
     try {
       const status = await api.getImportJobStatus(importJobId);
+
       if (isMountedRef.current) {
         setImportStatus(status);
 
@@ -95,16 +122,22 @@ export default function ContactsPage() {
           if (isComplete) {
             // Save imported count before clearing
             const processedRows = status.processed_rows || 0;
+
             setImportedCount(processedRows);
+
             // Immediately show success and refresh
             setShowImportSuccess(true);
             setImportStatus(status); // Keep status to show the success count
             // Refresh contacts list immediately
             await fetchContacts();
+
+
             // Clear from storage
             if (typeof window !== 'undefined') {
               localStorage.removeItem('activeImportJob');
             }
+
+
             // Hide progress bar immediately
             setImportJobId(null);
 
@@ -119,6 +152,7 @@ export default function ContactsPage() {
             setError(status.error || 'Import failed');
             setImportJobId(null);
             setImportStatus(null);
+
             if (typeof window !== 'undefined') {
               localStorage.removeItem('activeImportJob');
             }
@@ -130,10 +164,62 @@ export default function ContactsPage() {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get('/admin/companies/user?role=user&limit=100');
+      let userList = [];
+
+      if (response) {
+        if (Array.isArray(response)) {
+          userList = response;
+        } else if (response.data) {
+          userList = response.data.data || response.data.users || response.data || [];
+        } else if (response.users) {
+          userList = response.users;
+        }
+      }
+
+      if (isMountedRef.current) {
+        setUsers(userList);
+      }
+    } catch (err) {
+      console.error('Failed to fetch users', err);
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    if (selectedContactIds.length === 0 || !selectedAssignUserId) return;
+
+    setAssigning(true);
+    setError(null);
+
+    try {
+      const targetUserId = selectedAssignUserId === 'unassign' ? '' : selectedAssignUserId;
+
+      await Promise.all(
+        selectedContactIds.map(id =>
+          api.updateContact(id, { assigned_to: targetUserId })
+        )
+      );
+
+      setShowAssignSuccess(true);
+      setSelectedContactIds([]);
+      setSelectedAssignUserId(null);
+
+      await fetchContacts();
+    } catch (err: any) {
+      setError(err.message || 'Failed to assign contacts to user');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   const fetchContacts = async () => {
     setLoading(true);
+
     try {
       const params = new URLSearchParams();
+
       if (searchQuery) params.append('search', searchQuery);
       if (filterValid !== 'all') params.append('is_valid', filterValid === 'valid' ? 'true' : 'false');
       params.append('page', page.toString());
@@ -152,6 +238,7 @@ export default function ContactsPage() {
           setTotalPages(1);
           setTotalContacts(response.data?.contacts?.length || 0);
         }
+
         setError(null);
       }
     } catch (err: any) {
@@ -174,12 +261,15 @@ export default function ContactsPage() {
     try {
       setDeleting(true);
       await api.deleteContact(contactToDelete.id);
+
       if (isMountedRef.current) {
         setDeleteModalOpen(false);
         setContactToDelete(null);
         setShowDeleteSuccess(true);
         setError(null);
       }
+
+
       // Refresh contacts after showing success
       setTimeout(() => {
         if (isMountedRef.current) {
@@ -199,6 +289,39 @@ export default function ContactsPage() {
 
   const columns: Column<Contact>[] = [
     {
+      key: 'select_column',
+      header: (
+        <input
+          type="checkbox"
+          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+          checked={contacts.length > 0 && selectedContactIds.length === contacts.length}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedContactIds(contacts.map(c => c.id));
+            } else {
+              setSelectedContactIds([]);
+            }
+          }}
+        />
+      ) as unknown as string,
+      render: (row) => (
+        <input
+          type="checkbox"
+          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+          checked={selectedContactIds.includes(row.id)}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedContactIds(prev => [...prev, row.id]);
+            } else {
+              setSelectedContactIds(prev => prev.filter(id => id !== row.id));
+            }
+          }}
+        />
+      ),
+      width: '40px',
+    },
+    {
       key: 'name_column',
       header: 'Name',
       sortable: true,
@@ -214,10 +337,7 @@ export default function ContactsPage() {
       header: 'number',
       sortable: true,
       render: (row) => (
-        <div>
-          <p className="font-medium text-gray-900">{row.name || 'No Name'}</p>
-          <p className="text-sm text-gray-500">{row.phone_number}</p>
-        </div>
+        <span className="text-sm text-gray-600 font-mono">{row.phone_number}</span>
       ),
     },
     {
@@ -249,23 +369,24 @@ export default function ContactsPage() {
     },
     {
       key: 'assigned_to',
-      header: 'Tags',
-      render: (row) => (
-        <div className="flex flex-wrap gap-1">
-          {row.tags && row.tags.length > 0 ? (
-            row.tags.slice(0, 2).map((tag) => (
-              <Badge key={tag.id} variant="default" style={{ backgroundColor: tag.color }}>
-                {tag.name}
-              </Badge>
-            ))
-          ) : (
-            <span className="text-sm text-gray-400">No tags</span>
-          )}
-          {row.tags && row.tags.length > 2 && (
-            <Badge variant="default">+{row.tags.length - 2}</Badge>
-          )}
-        </div>
-      ),
+      header: 'Assigned To',
+      render: (row) => {
+        if (!row.assigned_to) {
+          return <span className="text-sm text-gray-400">Unassigned</span>;
+        }
+
+        const user = users.find(u => String(u.id) === String(row.assigned_to.trim()));
+
+        if (!user) {
+          return <span className="text-sm text-gray-400">Unassigned</span>;
+        }
+
+        return (
+          <Badge variant="success">
+            {user.name}
+          </Badge>
+        );
+      },
     },
     {
       key: 'is_valid',
@@ -476,6 +597,143 @@ export default function ContactsPage() {
           title="All Contacts"
           description={`View and manage your contacts (${totalContacts} total)`}
         />
+
+        {/* Bulk assignment panel */}
+        {selectedContactIds.length > 0 && (
+          <div className="bg-blue-50 border-y border-blue-200 px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-blue-800">
+                {selectedContactIds.length} {selectedContactIds.length === 1 ? 'contact' : 'contacts'} selected
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto relative">
+              {/* Custom Single-select Dropdown Popover */}
+              <div className="relative inline-block text-left w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                  className="w-full sm:w-[250px] inline-flex justify-between items-center text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={assigning}
+                >
+                  <span className="truncate">
+                    {!selectedAssignUserId
+                      ? 'Select User'
+                      : selectedAssignUserId === 'unassign'
+                      ? 'Unassigned / Remove Assignment'
+                      : users.find(u => String(u.id) === String(selectedAssignUserId))?.name || 'Select User'}
+                  </span>
+                  <ChevronDown className="h-4 w-4 ml-2 flex-shrink-0 text-gray-400" />
+                </button>
+
+                {/* Click-away backdrop overlay */}
+                {isUserDropdownOpen && (
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setIsUserDropdownOpen(false)}
+                  />
+                )}
+
+                {/* Popover Menu content */}
+                {isUserDropdownOpen && (
+                  <div className="absolute right-0 mt-1 w-full sm:w-[280px] rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 focus:outline-none max-h-[350px] flex flex-col">
+                    {/* User Search Input */}
+                    <div className="p-2 border-b border-gray-100">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search users..."
+                          value={userSearchQuery}
+                          onChange={(e) => setUserSearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Scrollable checklist of options */}
+                    <div className="overflow-y-auto py-1 flex-1 max-h-[220px]">
+                      {/* Unassign special option */}
+                      <label className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer select-none">
+                        <input
+                          type="radio"
+                          name="assign-user"
+                          className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 mr-2"
+                          checked={selectedAssignUserId === 'unassign'}
+                          onChange={() => {
+                            setSelectedAssignUserId('unassign');
+                          }}
+                        />
+                        <span className="font-semibold text-red-600">Unassigned (Remove Assignment)</span>
+                      </label>
+
+                      <div className="border-t border-gray-100 my-1" />
+
+                      {/* Created Users list filtered by search query */}
+                      {users
+                        .filter(user =>
+                          user.name?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                          user.email?.toLowerCase().includes(userSearchQuery.toLowerCase())
+                        )
+                        .map(user => {
+                          const isChecked = selectedAssignUserId === user.id;
+
+                          
+return (
+                            <label
+                              key={user.id}
+                              className="flex items-center px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer select-none"
+                            >
+                              <input
+                                type="radio"
+                                name="assign-user"
+                                className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 mr-2"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setSelectedAssignUserId(user.id);
+                                }}
+                              />
+                              <div className="truncate">
+                                <p className="font-medium text-gray-900 leading-none">{user.name}</p>
+                                <p className="text-xs text-gray-400 mt-1">{user.email || user.phone || 'no contact info'}</p>
+                              </div>
+                            </label>
+                          );
+                        })}
+
+                      {users.length === 0 && (
+                        <div className="px-4 py-2 text-sm text-gray-500 text-center">
+                          No users found
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={handleBulkAssign}
+                isLoading={assigning}
+                disabled={assigning || !selectedAssignUserId}
+              >
+                Assign
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setSelectedContactIds([]);
+                  setSelectedAssignUserId(null);
+                }}
+                disabled={assigning}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
         <Table
           columns={columns}
           data={contacts}
@@ -502,6 +760,7 @@ export default function ContactsPage() {
               <div className="flex items-center gap-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNumber;
+
                   if (totalPages <= 5) {
                     pageNumber = i + 1;
                   } else if (page <= 3) {
@@ -578,7 +837,7 @@ export default function ContactsPage() {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-medium text-gray-900">
-                Delete <span className="font-semibold text-red-600">"{contactToDelete?.name || 'this contact'}"</span>?
+                Delete <span className="font-semibold text-red-600">&quot;{contactToDelete?.name || 'this contact'}&quot;</span>?
               </h3>
               <p className="mt-1 text-sm text-gray-600">
                 This contact will be permanently deleted from your system.
@@ -594,6 +853,15 @@ export default function ContactsPage() {
           type="success"
           message={`${contactToDelete?.name || 'Contact'} has been successfully deleted.`}
           onClose={() => setShowDeleteSuccess(false)}
+        />
+      )}
+
+      {/* Assign Success Toast */}
+      {showAssignSuccess && (
+        <Toast
+          type="success"
+          message="Contacts assigned successfully."
+          onClose={() => setShowAssignSuccess(false)}
         />
       )}
     </div>

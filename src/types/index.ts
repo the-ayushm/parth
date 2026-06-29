@@ -148,6 +148,7 @@ export interface Contact {
   tags?: ContactTag[];
   created_at: string;
   updated_at: string;
+  assigned_to?: string;
 }
 
 export interface ContactTag {

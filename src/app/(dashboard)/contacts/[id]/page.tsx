@@ -1,16 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
 import { useRouter, useParams } from 'next/navigation';
+
+import { ArrowLeft, Save, User, MessageSquare, Tag as TagIcon, ChevronDown, Search } from 'lucide-react';
+
+import { format } from 'date-fns';
+
 import { Card, CardHeader } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
 import Alert from '@/components/ui/Alert';
 import Spinner from '@/components/ui/Spinner';
-import { ArrowLeft, Save, User, MessageSquare, Tag as TagIcon } from 'lucide-react';
 import { Contact, ContactTag } from '@/types';
-import { format } from 'date-fns';
+
+
 import api from '@/lib/api';
 
 export default function ContactDetailPage() {
@@ -24,6 +30,7 @@ export default function ContactDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -31,7 +38,10 @@ export default function ContactDetailPage() {
     tag_ids: [] as string[],
     assigned_to: '' as string
   });
+
   const [users, setUsers] = useState<any[]>([]);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -56,6 +66,7 @@ export default function ContactDetailPage() {
       setLoading(true);
       const response = await api.get(`/admin/contacts/${id}`);
       const data = response.data;
+
       setContact(data);
       setFormData({
         name: data.name || '',
@@ -74,6 +85,7 @@ export default function ContactDetailPage() {
   const fetchTags = async () => {
     try {
       const response = await api.get('/admin/contacts/tags');
+
       setTags(response.data.data || []);
     } catch (err) {
       console.error('Failed to fetch tags', err);
@@ -223,21 +235,105 @@ export default function ContactDetailPage() {
                   Select User
                 </label>
 
-                <select
-                  value={formData.assigned_to}
-                  onChange={(e) =>
-                    handleChange('assigned_to', e.target.value)
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                >
-                  <option value="">Unassigned</option>
+                <div className="relative inline-block text-left w-full">
+                  <button
+                    type="button"
+                    onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                    className="w-full inline-flex justify-between items-center text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <span className="truncate">
+                      {!formData.assigned_to
+                        ? 'Unassigned'
+                        : users.find(u => String(u.id) === String(formData.assigned_to.trim()))?.name || 'Unassigned'}
+                    </span>
+                    <ChevronDown className="h-4 w-4 ml-2 flex-shrink-0 text-gray-400" />
+                  </button>
 
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name} ({user.phone})
-                    </option>
-                  ))}
-                </select>
+                  {/* Click-away backdrop overlay */}
+                  {isUserDropdownOpen && (
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setIsUserDropdownOpen(false)}
+                    />
+                  )}
+
+                  {/* Popover Menu content */}
+                  {isUserDropdownOpen && (
+                    <div className="absolute left-0 mt-1 w-full rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 focus:outline-none max-h-[350px] flex flex-col">
+                      {/* User Search Input */}
+                      <div className="p-2 border-b border-gray-100">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search users..."
+                            value={userSearchQuery}
+                            onChange={(e) => setUserSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Scrollable checklist of options */}
+                      <div className="overflow-y-auto py-1 flex-1 max-h-[220px]">
+                        {/* Unassign special option */}
+                        <label className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="assign-user"
+                            className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 mr-2"
+                            checked={!formData.assigned_to}
+                            onChange={() => {
+                              handleChange('assigned_to', '');
+                              setIsUserDropdownOpen(false);
+                            }}
+                          />
+                          <span className="font-semibold text-red-600">Unassigned (Remove Assignment)</span>
+                        </label>
+
+                        <div className="border-t border-gray-100 my-1" />
+
+                        {/* Created Users list filtered by search query */}
+                        {users
+                          .filter(user =>
+                            user.name?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                            user.email?.toLowerCase().includes(userSearchQuery.toLowerCase())
+                          )
+                          .map(user => {
+                            const isChecked = formData.assigned_to === String(user.id);
+
+                            return (
+                              <label
+                                key={user.id}
+                                className="flex items-center px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer select-none"
+                              >
+                                <input
+                                  type="radio"
+                                  name="assign-user"
+                                  className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 mr-2"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    handleChange('assigned_to', String(user.id));
+                                    setIsUserDropdownOpen(false);
+                                  }}
+                                />
+                                <div className="truncate">
+                                  <p className="font-medium text-gray-900 leading-none">{user.name}</p>
+                                  <p className="text-xs text-gray-400 mt-1">{user.email || user.phone || 'no contact info'}</p>
+                                </div>
+                              </label>
+                            );
+                          })}
+
+                        {users.length === 0 && (
+                          <div className="px-4 py-2 text-sm text-gray-500 text-center">
+                            No users found
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </Card>
           </div>

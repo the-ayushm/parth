@@ -129,7 +129,7 @@ module.exports = {
     "import/resolver": {
       "node": {},
       "typescript": {
-        "project": "./jsconfig.json"
+        "project": "./tsconfig.json"
       }
     }
   },
