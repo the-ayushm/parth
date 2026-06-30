@@ -34,6 +34,8 @@ import {
   FileText,
   AlertCircle,
   Image,
+  ChevronDown,
+  UserPlus,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -41,13 +43,14 @@ import {
   getTemplateVariables,
 } from "@/lib/template-utils";
 import { useForm } from "react-hook-form";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import { useSocket } from "@/hooks/useSocket";
 import api from "@/lib/api";
 
 /* ---------- Types ---------- */
 interface Contact {
   id: number;
+  dbId?: string;
   name: string;
   phone?: string | null;
   initials?: string;
@@ -59,6 +62,7 @@ interface Contact {
   direction?: string;
   lastMessageStatus?: string;
   tags?: string[];
+  assigned_to?: string | null;
 }
 
 interface Message {
@@ -121,9 +125,9 @@ interface MessageFormInputs {
   message: string;
 }
 
-const PRIMARY_COLOR = "bg-emerald-600";
-const PRIMARY_TEXT = "text-emerald-600";
-const PRIMARY_HOVER = "hover:bg-emerald-700";
+const PRIMARY_COLOR = "bg-blue-600";
+const PRIMARY_TEXT = "text-blue-600";
+const PRIMARY_HOVER = "hover:bg-blue-700";
 const DEBUG_INBOX = process.env.NEXT_PUBLIC_DEBUG_INBOX === "true";
 const CONTACTS_PAGE_LIMIT = 20;
 
@@ -416,8 +420,9 @@ const mapContactsForSidebar = (items: any[], idSeed: string): Contact[] => {
       ? displayLeadPhone
       : String(fallbackName || displayLeadPhone);
 
-    return {
+    const result = {
       id: createStableContactId(`${idSeed}-${leadPhone || "unknown"}-${index}`),
+      dbId: item?.id ? String(item.id) : undefined,
       name: displayName,
       phone: displayLeadPhone || null,
       initials: buildInitials(displayName),
@@ -446,6 +451,8 @@ const mapContactsForSidebar = (items: any[], idSeed: string): Contact[] => {
       direction: item?.direction || item?.lastMessageDirection,
       lastMessageStatus: item?.lastMessageStatus || item?.last_message_status || item?.status,
     };
+    console.log("DEBUG mapContactsForSidebar:", { name: result.name, idSeed, originalId: item?.id, dbId: result.dbId });
+    return result;
   });
 };
 
@@ -537,6 +544,12 @@ export default function InboxPage() {
   const queryClient = useQueryClient();
   const [activeFilter] = useState("All");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  // New state variables for assignment
+  const [users, setUsers] = useState<any[]>([]);
+  const [isHeaderUserDropdownOpen, setIsHeaderUserDropdownOpen] = useState(false);
+  const [headerUserSearchQuery, setHeaderUserSearchQuery] = useState('');
+  const [pendingAssignUserId, setPendingAssignUserId] = useState<string | null | undefined>(undefined);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -679,7 +692,10 @@ export default function InboxPage() {
   });
 
   const handleContactSelect = (contact: Contact) => {
+    console.log("DEBUG: handleContactSelect clicked contact:", { id: contact.id, dbId: contact.dbId, name: contact.name });
     setSelectedContact({ ...contact, unreadCount: 0 });
+    setIsHeaderUserDropdownOpen(false);
+    setHeaderUserSearchQuery('');
 
     const phoneKey = contact.phone ? getLast10Digits(contact.phone) : null;
     if (phoneKey && typeof window !== "undefined") {
@@ -692,6 +708,72 @@ export default function InboxPage() {
         c.id === contact.id ? { ...c, unreadCount: 0 } : c
       );
     });
+  };
+
+  // Fetch users list once on mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get('/admin/companies/user?role=user&limit=100');
+      let userList = [];
+
+      if (response) {
+        if (Array.isArray(response)) {
+          userList = response;
+        } else if (response.data) {
+          userList = response.data.data || response.data.users || response.data || [];
+        } else if (response.users) {
+          userList = response.users;
+        }
+      }
+      setUsers(userList);
+    } catch (err) {
+      console.error('Failed to fetch users', err);
+    }
+  };
+
+  const handleHeaderAssignContact = async (userId: string) => {
+    if (!selectedContact) return;
+    const targetContactId = selectedContact.dbId || String(selectedContact.id);
+    const toastId = toast.loading('Assigning contact...');
+    try {
+      await api.updateContact(targetContactId, { assigned_to: userId });
+
+      // Update local state
+      setSelectedContact((prev) => prev ? { ...prev, assigned_to: userId } : null);
+
+      // Update contacts list query cache
+      queryClient.setQueryData(["contacts", selectedPhone], (oldData: any) => {
+        if (!Array.isArray(oldData)) return oldData;
+        return oldData.map((c: any) =>
+          String(c.id) === String(selectedContact.id) ? { ...c, assigned_to: userId } : c
+        );
+      });
+
+      const assignedUser = userId
+        ? users.find(u => String(u.id) === String(userId))?.name || 'user'
+        : null;
+
+      toast.update(toastId, {
+        render: assignedUser
+          ? `✅ Assigned to ${assignedUser}`
+          : '✅ Assignment removed',
+        type: 'success',
+        isLoading: false,
+        autoClose: 3000,
+      });
+    } catch (err: any) {
+      console.error('Failed to assign contact:', err);
+      toast.update(toastId, {
+        render: err.message || 'Failed to assign contact',
+        type: 'error',
+        isLoading: false,
+        autoClose: 3000,
+      });
+    }
   };
 
   // Set selected phone directly (matches top selector behavior)
@@ -1692,7 +1774,7 @@ export default function InboxPage() {
     const isDelivered = status === "delivered" || status === "DELIVERED" || !!deliveredAt || isRead;
 
     if (isRead) {
-      return <CheckCheck size={14} className="text-emerald-500 ml-0.5" />;
+      return <CheckCheck size={14} className="text-blue-500 ml-0.5" />;
     }
     if (isDelivered) {
       return <CheckCheck size={14} className="text-slate-500 ml-0.5" />;
@@ -1726,7 +1808,7 @@ export default function InboxPage() {
   }: ContactItemProps) => (
     <div
       onClick={onClick}
-      className={`contact-item flex flex-col cursor-pointer border-b border-emerald-200 dark:border-emerald-700 ${isSelected ? "selected" : "bg-transparent"
+      className={`contact-item flex flex-col cursor-pointer border-b border-blue-200 dark:border-blue-700 ${isSelected ? "selected" : "bg-transparent"
         }`}
     >
       {/* Main contact row */}
@@ -1771,7 +1853,7 @@ export default function InboxPage() {
 
           {/* Last Message Time */}
           {contact.lastMessageTime && (
-            <span className={`text-[10px] font-medium leading-none ${(contact.unreadCount ?? 0) > 0 ? "text-emerald-500" : "text-gray-500 dark:text-gray-400"
+            <span className={`text-[10px] font-medium leading-none ${(contact.unreadCount ?? 0) > 0 ? "text-blue-500" : "text-gray-500 dark:text-gray-400"
               }`}>
               {new Date(contact.lastMessageTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
@@ -1819,16 +1901,16 @@ export default function InboxPage() {
 
   return (
     <div
-      className={`inbox-page h-[calc(100vh-32px)] md:h-[calc(100vh-64px)] rounded-[1.2rem] shadow-xl overflow-hidden border border-emerald-500 dark:border-emerald-500 relative w-full flex lg:grid lg:grid-cols-[380px_1fr] lg:grid-rows-1`}
+      className={`inbox-page h-[calc(100vh-32px)] md:h-[calc(100vh-64px)] rounded-[1.2rem] shadow-xl overflow-hidden border border-blue-500 dark:border-blue-500 relative w-full flex lg:grid lg:grid-cols-[380px_1fr] lg:grid-rows-1`}
     >
       {/* Contacts Sidebar */}
       <div className={`contacts-sidebar flex-col lg:w-[380px] ${selectedContact ? "hidden lg:flex" : "flex"}`}>
         {/* Contacts Sidebar */}
         <div
-          className="contacts-sidebar w-full flex flex-col h-full border-r-2 border-emerald-300 dark:border-emerald-700"
+          className="contacts-sidebar w-full flex flex-col h-full border-r-2 border-blue-300 dark:border-blue-700"
         >
           {/* Header Section */}
-          <div className="contacts-header bg-emerald-600 text-white p-4 font-bold flex items-center justify-between relative border-b-2 border-emerald-500 shadow-sm h-18 py-3.75 px-4">
+          <div className="contacts-header bg-blue-600 text-white p-4 font-bold flex items-center justify-between relative border-b-2 border-blue-500 shadow-sm h-18 py-3.75 px-4">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowSidebar(prev => !prev)}
@@ -1843,7 +1925,7 @@ export default function InboxPage() {
             <div className="relative ml-auto">
               <button
                 onClick={() => setShowInboxMenu(!showInboxMenu)}
-                className="p-2 rounded-full hover:bg-emerald-500 transition-all"
+                className="p-2 rounded-full hover:bg-blue-500 transition-all"
               >
                 <MoreVertical className="cursor-pointer text-white" />
               </button>
@@ -1852,7 +1934,7 @@ export default function InboxPage() {
               {showInboxMenu && (
                 <div
                   ref={inboxMenuRef}
-                  className="dropdown-menu absolute top-0 left-full ml-1 w-64 bg-white dark:bg-gray-800 border border-emerald-600 dark:border-emerald-700 rounded-lg shadow-lg z-50 p-3 space-y-2"
+                  className="dropdown-menu absolute top-0 left-full ml-1 w-64 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded-lg shadow-lg z-50 p-3 space-y-2"
                 >
                   {/* Unread Row */}
                   <div
@@ -1864,7 +1946,7 @@ export default function InboxPage() {
                           : "unreadTime",
                       )
                     }
-                    className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 px-2 py-1 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 dark:hover:text-white rounded"
+                    className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 px-2 py-1 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 dark:hover:text-white rounded"
                   >
                     Unread
                   </div>
@@ -1873,7 +1955,7 @@ export default function InboxPage() {
                   {activeSubMenu === "unreadTime" && unreadRef.current && (
                     <>
                       <div
-                        className="absolute z-50 bg-white dark:bg-gray-800 border border-emerald-600 dark:border-emerald-700 rounded shadow-lg p-3 w-48 space-y-2"
+                        className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-48 space-y-2"
                         style={{
                           top: unreadRef.current?.offsetTop,
                           left:
@@ -1888,14 +1970,14 @@ export default function InboxPage() {
                             setShowDatePicker(!showDatePicker);
                             setShowTimeRange(false);
                           }}
-                          className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
+                          className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
                         >
                           Date
                         </div>
 
                         {showDatePicker && dateRef.current && (
                           <div
-                            className="absolute z-50 bg-white dark:bg-gray-800 border border-emerald-600 dark:border-emerald-700 rounded shadow-lg p-3 w-56"
+                            className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-56"
                             style={{
                               top: (dateRef.current?.offsetTop ?? 0) + 5,
                               left:
@@ -1906,7 +1988,7 @@ export default function InboxPage() {
                           >
                             <input
                               type="date"
-                              className="w-full px-2 py-2 text-sm border border-emerald-600 dark:border-emerald-700 rounded bg-white dark:bg-gray-700 cursor-pointer"
+                              className="w-full px-2 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 cursor-pointer"
                             />
                           </div>
                         )}
@@ -1917,7 +1999,7 @@ export default function InboxPage() {
                             setShowTimeRange(!showTimeRange);
                             setShowDatePicker(false);
                           }}
-                          className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
+                          className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
                         >
                           Time
                         </div>
@@ -1932,7 +2014,7 @@ export default function InboxPage() {
                         ].map((label) => (
                           <div
                             key={label}
-                            className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
+                            className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
                           >
                             {label}
                           </div>
@@ -1941,7 +2023,7 @@ export default function InboxPage() {
 
                       {showTimeRange && timeRef.current && (
                         <div
-                          className="absolute z-50 bg-white dark:bg-gray-800 border border-emerald-600 dark:border-emerald-700 rounded shadow-lg p-3 w-62.5 min-w-62.5"
+                          className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-62.5 min-w-62.5"
                           style={{
                             top: timeRef.current?.offsetTop || 0,
                             left:
@@ -1952,7 +2034,7 @@ export default function InboxPage() {
                           }}
                         >
                           <div className="flex items-center justify-between gap-1 mb-2">
-                            <select className="w-25 px-1 py-1 text-xs border border-emerald-600 dark:border-emerald-700 rounded bg-white dark:bg-gray-700 dark:text-white">
+                            <select className="w-25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 dark:text-white">
                               {[...Array(12)]
                                 .map((_, i) =>
                                   i === 0 ? "12:00" : `${i}:00`,
@@ -1961,7 +2043,7 @@ export default function InboxPage() {
                                   <option key={time}>{time}</option>
                                 ))}
                             </select>
-                            <select className="w-26.25 px-1 py-1 text-xs border border-emerald-600 dark:border-emerald-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
+                            <select className="w-26.25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
                               {["AM", "PM"].map((meridian) => (
                                 <option key={meridian}>{meridian}</option>
                               ))}
@@ -1969,7 +2051,7 @@ export default function InboxPage() {
                           </div>
 
                           <div className="flex items-center justify-between gap-1">
-                            <select className="w-25 px-1 py-1 text-xs border border-emerald-600 dark:border-emerald-700 rounded bg-white dark:bg-gray-700 dark:text-white">
+                            <select className="w-25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 dark:text-white">
                               {[...Array(12)]
                                 .map((_, i) =>
                                   i === 0 ? "12:00" : `${i}:00`,
@@ -1978,7 +2060,7 @@ export default function InboxPage() {
                                   <option key={time}>{time}</option>
                                 ))}
                             </select>
-                            <select className="w-26.25 px-1 py-1 text-xs border border-emerald-600 dark:border-emerald-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
+                            <select className="w-26.25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
                               {["AM", "PM"].map((meridian) => (
                                 <option key={meridian}>{meridian}</option>
                               ))}
@@ -1998,13 +2080,13 @@ export default function InboxPage() {
                         setActiveSubMenu(null);
                         setShowInboxMenu(false);
                       }}
-                      className="dropdown-item w-full text-left text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
+                      className="dropdown-item w-full text-left text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
                     >
                       {label}
                     </button>
                   ))}
 
-                  <div className="border-t border-emerald-600 dark:border-emerald-700 my-2" />
+                  <div className="border-t border-blue-600 dark:border-blue-700 my-2" />
 
                   <div className="space-y-2">
                     <div
@@ -2016,7 +2098,7 @@ export default function InboxPage() {
                             : "assignedTo",
                         )
                       }
-                      className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
+                      className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
                     >
                       Assigned to
                     </div>
@@ -2036,7 +2118,7 @@ export default function InboxPage() {
                           <input
                             type="text"
                             placeholder="demo"
-                            className="w-48 px-3 py-2 text-sm border border-emerald-600 dark:border-emerald-700 rounded bg-white dark:hover:bg-emerald-700 shadow-sm"
+                            className="w-48 px-3 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:hover:bg-blue-700 shadow-sm"
                           />
                         </div>
                       )}
@@ -2050,7 +2132,7 @@ export default function InboxPage() {
                             : "phoneNumbers",
                         )
                       }
-                      className="dropdown-item text-sm font-normal text-emerald-600 dark:text-emerald-400 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-700 rounded"
+                      className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
                     >
                       Phone number
                     </div>
@@ -2070,7 +2152,7 @@ export default function InboxPage() {
                           <input
                             type="text"
                             placeholder="number"
-                            className="w-48 px-3 py-2 text-sm border border-emerald-600 dark:border-emerald-700 rounded bg-white dark:bg-gray-700 shadow-sm"
+                            className="w-48 px-3 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 shadow-sm"
                           />
                         </div>
                       )}
@@ -2096,7 +2178,7 @@ export default function InboxPage() {
                       }
                       setActiveIcon(it.id);
                     }}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium border ${activeIcon === it.id ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700'}`}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border ${activeIcon === it.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}
                   >
                     {it.label}
                   </button>
@@ -2110,7 +2192,7 @@ export default function InboxPage() {
                           key={`dd-tag-${tag.id}`}
                           type="button"
                           onClick={(e) => { e.stopPropagation(); console.log('Inbox: tag dropdown clicked', tag); setSelectedTag((s) => (s === String(tag.id) ? null : String(tag.id))); setShowTagMenu(false); }}
-                          className={`w-full text-left px-2 py-1 rounded text-sm ${selectedTag === String(tag.id) ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                          className={`w-full text-left px-2 py-1 rounded text-sm ${selectedTag === String(tag.id) ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                         >
                           {tag.name}
                         </button>
@@ -2126,7 +2208,7 @@ export default function InboxPage() {
                   key={`tag-${tag.id}`}
                   type="button"
                   onClick={(e) => { e.stopPropagation(); console.log('Inbox: tag clicked', tag); setSelectedTag((s) => (s === String(tag.id) ? null : String(tag.id))); }}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium border pointer-events-auto cursor-pointer ${selectedTag === String(tag.id) ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700'}`}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border pointer-events-auto cursor-pointer ${selectedTag === String(tag.id) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}
                 >
                   {tag.name}
                 </button>
@@ -2146,11 +2228,7 @@ export default function InboxPage() {
                   placeholder="Find conversations..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full p-2 bg-gray-50 dark:bg-gray-800
-                        border border-gray-200 dark:border-gray-700 rounded-xl
-                        text-gray-900 dark:text-white placeholder-gray-500
-                        focus:outline-none focus:ring-2 focus:ring-emerald-500 ${searchQuery.trim() ? "pl-4" : "pl-16"
-                    }`}
+                  className={`w-full p-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 ${searchQuery.trim() ? "pl-4" : "pl-16"}`}
                 />
               </div>
 
@@ -2158,7 +2236,7 @@ export default function InboxPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowFilterMenu((s) => !s)}
-                  className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-emerald-600"
+                  className="p-2 rounded-lg bg-white border border-gray-200 text-blue-600 hover:bg-gray-50"
                   title="Filter conversations"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -2166,7 +2244,7 @@ export default function InboxPage() {
                   </svg>
                 </button>
 
-                <button className="p-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600" title="Contacts">
+                <button className="p-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50" title="Contacts">
                   <Users size={18} />
                 </button>
               </div>
@@ -2176,15 +2254,15 @@ export default function InboxPage() {
                 <div className="filter-dropdown absolute top-1/2 left-full ml-2 -translate-y-1/2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-3">
                   <div className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-2">Filter Conversations</div>
                   <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-emerald-600">
+                    <label className="flex items-center gap-2 text-blue-600">
                       <input type="checkbox" className="rounded" />
                       <span>Unread</span>
                     </label>
-                    <label className="flex items-center gap-2 text-emerald-600">
+                    <label className="flex items-center gap-2 text-blue-600">
                       <input type="checkbox" className="rounded" />
                       <span>Assigned</span>
                     </label>
-                    <label className="flex items-center gap-2 text-emerald-600">
+                    <label className="flex items-center gap-2 text-blue-600">
                       <input type="checkbox" className="rounded" />
                       <span>Unassigned</span>
                     </label>
@@ -2202,7 +2280,7 @@ export default function InboxPage() {
                         <button
                           key={id}
                           onClick={() => handlePhoneSelect(id)}
-                          className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors ${isSelected ? 'bg-emerald-600 text-white' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+                          className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
                         >
                           {disp}
                         </button>
@@ -2214,14 +2292,14 @@ export default function InboxPage() {
             </div>
 
             <div className="mt-2 flex items-center justify-between">
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+              <p className="text-[11px] text-blue-600 dark:text-blue-400">
                 Showing {paginatedContacts.length} of {filteredContacts.length} contacts ({currentPage} of {totalPages})
               </p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Previous page"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2231,7 +2309,7 @@ export default function InboxPage() {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Next page"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2248,11 +2326,11 @@ export default function InboxPage() {
             style={{
               minHeight: 0,
               scrollbarWidth: 'thin',
-              scrollbarColor: '#10b981 #f0f0f0'
+              scrollbarColor: '#3b82f6 #f3f4f6'
             }}
           >
             {loadingContacts && (
-              <p className="p-4 text-emerald-600">Loading...</p>
+              <p className="p-4 text-blue-600">Loading...</p>
             )}
             {paginatedContacts.map((c: any) => (
               <ContactItem
@@ -2278,7 +2356,7 @@ lg:relative lg:flex
   `}
       >
         {!selectedContact ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center text-emerald-600 p-6">
+          <div className="flex-1 flex flex-col items-center justify-center text-center text-blue-600 p-6">
             <MessageSquare
               size={60}
               className={`${PRIMARY_TEXT} ${iconJumpAnimation}`}
@@ -2291,7 +2369,7 @@ lg:relative lg:flex
           <div className="flex flex-col h-full overflow-hidden">
             {/* Chat Header */}
             <div
-              className={`contacts-header text-white p-4 flex justify-between items-center rounded-tr-2xl border-b-2 border-emerald-300 dark:border-emerald-600 shadow-md`}
+              className={`contacts-header text-white p-4 flex justify-between items-center rounded-tr-2xl border-b-2 border-blue-300 dark:border-blue-600 shadow-md`}
               style={{ height: "72px" }}
             >
               <div className="flex items-center gap-3">
@@ -2324,7 +2402,7 @@ lg:relative lg:flex
                           {headerName}
                         </span>
                         {showHeaderPhone ? (
-                          <span className="text-xs text-emerald-200">
+                          <span className="text-xs text-blue-200">
                             {headerPhone}
                           </span>
                         ) : null}
@@ -2339,45 +2417,224 @@ lg:relative lg:flex
                 <div className="relative group">
                   <Phone
                     size={18}
-                    className={`${iconJumpAnimation} hover:text-emerald-600 transition-colors duration-200`}
+                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
                   />
-                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-emerald-100 text-emerald-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-emerald-300 font-semibold transform group-hover:translate-y-0.5">
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
                     Audio call
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-emerald-300"></div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
                   </span>
                 </div>
 
                 <div className="relative group">
                   <Video
                     size={18}
-                    className={`${iconJumpAnimation} hover:text-emerald-600 transition-colors duration-200`}
+                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
                   />
-                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-emerald-100 text-emerald-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-emerald-300 font-semibold transform group-hover:translate-y-0.5">
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
                     Video call
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-emerald-300"></div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
                   </span>
                 </div>
 
                 <div className="relative group">
                   <button
                     onClick={() => setShowFAQFlow(!showFAQFlow)}
-                    className={`${iconJumpAnimation} hover:text-emerald-600 transition-colors duration-200`}
+                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
                   >
                     <MessageSquare size={18} />
                   </button>
-                  <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-emerald-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
+                  <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-blue-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
                     FAQ Bot
                   </span>
+                </div>
+
+                {/* Assign User Icon & Dropdown */}
+                <div className="relative group">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !isHeaderUserDropdownOpen;
+                      setIsHeaderUserDropdownOpen(next);
+                      if (next) {
+                        // Sync pending selection to current assignment when opening
+                        setPendingAssignUserId(selectedContact?.assigned_to ?? '');
+                        setHeaderUserSearchQuery('');
+                      }
+                    }}
+                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200 flex items-center justify-center`}
+                  >
+                    <UserPlus size={18} />
+                    {/* Visual indicator dot if assigned to someone */}
+                    {selectedContact?.assigned_to && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white"></span>
+                    )}
+                  </button>
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5 z-[70]">
+                    Assign Contact
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
+                  </span>
+
+                  {/* Click-away backdrop overlay */}
+                  {isHeaderUserDropdownOpen && (
+                    <div
+                      className="fixed inset-0 z-50 cursor-default"
+                      onClick={() => {
+                        setIsHeaderUserDropdownOpen(false);
+                        setHeaderUserSearchQuery('');
+                      }}
+                    />
+                  )}
+
+                  {/* Popover Menu content */}
+                  {isHeaderUserDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-[270px] rounded-xl shadow-2xl bg-white text-gray-900 border border-gray-200 z-[80] flex flex-col overflow-hidden">
+                      {/* Header */}
+                      <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
+                        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Assign Contact</p>
+                        <p className="text-xs font-medium text-gray-800 mt-0.5">
+                          Currently:{' '}
+                          <span className={`font-semibold ${selectedContact?.assigned_to ? 'text-blue-600' : 'text-gray-400'}`}>
+                            {!selectedContact?.assigned_to
+                              ? 'Unassigned'
+                              : users.find(u => String(u.id) === String(selectedContact.assigned_to?.trim()))?.name || 'Unknown'}
+                          </span>
+                        </p>
+                      </div>
+
+                      {/* Search Input */}
+                      <div className="px-3 py-2 border-b border-gray-100">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                          <input
+                            type="text"
+                            placeholder="Search users..."
+                            value={headerUserSearchQuery}
+                            onChange={(e) => setHeaderUserSearchQuery(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            autoFocus
+                            className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Scrollable User List */}
+                      <div className="overflow-y-auto max-h-[220px] py-1">
+                        {/* Remove Assignment option */}
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPendingAssignUserId('');
+                          }}
+                          className={`flex items-center gap-3 px-3 py-2 cursor-pointer select-none transition-colors ${pendingAssignUserId === ''
+                            ? 'bg-red-50 border-l-2 border-red-400'
+                            : 'hover:bg-gray-50 border-l-2 border-transparent'
+                            }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${pendingAssignUserId === ''
+                            ? 'border-red-500 bg-red-500'
+                            : 'border-gray-300 bg-white'
+                            }`}>
+                            {pendingAssignUserId === '' && (
+                              <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                            )}
+                          </div>
+                          <span className="text-xs font-semibold text-red-500">Remove Assignment</span>
+                        </div>
+
+                        <div className="mx-3 my-1 border-t border-gray-100" />
+
+                        {/* Users list */}
+                        {users
+                          .filter(user =>
+                            user.name?.toLowerCase().includes(headerUserSearchQuery.toLowerCase()) ||
+                            user.email?.toLowerCase().includes(headerUserSearchQuery.toLowerCase())
+                          )
+                          .map(user => {
+                            const isSelected = pendingAssignUserId === String(user.id);
+                            const initials = (user.name || 'U').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+
+                            return (
+                              <div
+                                key={user.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPendingAssignUserId(String(user.id));
+                                }}
+                                className={`flex items-center gap-3 px-3 py-2 cursor-pointer select-none transition-colors ${isSelected
+                                  ? 'bg-blue-50 border-l-2 border-blue-500'
+                                  : 'hover:bg-gray-50 border-l-2 border-transparent'
+                                  }`}
+                              >
+                                {/* Custom radio indicator */}
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'
+                                  }`}>
+                                  {isSelected && (
+                                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                                  )}
+                                </div>
+                                {/* Avatar */}
+                                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                                  {initials}
+                                </div>
+                                {/* Name + email */}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium text-gray-900 truncate leading-none">{user.name}</p>
+                                  <p className="text-[10px] text-gray-400 truncate mt-0.5">{user.email || user.phone || '—'}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                        {users.filter(u =>
+                          u.name?.toLowerCase().includes(headerUserSearchQuery.toLowerCase()) ||
+                          u.email?.toLowerCase().includes(headerUserSearchQuery.toLowerCase())
+                        ).length === 0 && (
+                            <div className="px-4 py-4 text-xs text-gray-400 text-center">
+                              No users found
+                            </div>
+                          )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="px-3 py-2.5 border-t border-gray-100 bg-gray-50 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsHeaderUserDropdownOpen(false);
+                            setHeaderUserSearchQuery('');
+                          }}
+                          className="flex-1 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={pendingAssignUserId === undefined}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (pendingAssignUserId === undefined) return;
+                            setIsHeaderUserDropdownOpen(false);
+                            setHeaderUserSearchQuery('');
+                            await handleHeaderAssignContact(pendingAssignUserId ?? '');
+                          }}
+                          className="flex-1 py-1.5 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
+                        >
+                          Assign
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="relative group">
                   <MoreVertical
                     size={15}
-                    className={`${iconJumpAnimation} hover:text-emerald-600 transition-colors duration-200`}
+                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
                   />
-                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-emerald-100 text-emerald-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-emerald-300 font-semibold transform group-hover:translate-y-0.5">
+                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
                     Options
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-emerald-300"></div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
                   </span>
                 </div>
 
@@ -2390,7 +2647,7 @@ lg:relative lg:flex
             {selectedContact && (
               <div
                 className={`px-4 py-2 text-sm font-medium ${isWindowOpenFromAPI
-                  ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-200"
+                  ? "bg-blue-500/20 text-blue-800 dark:text-blue-200"
                   : "bg-amber-500/20 text-amber-800 dark:text-amber-200"
                   }`}
               >
@@ -2535,11 +2792,11 @@ lg:relative lg:flex
                               })()
                             ) : msg.type === "interactive" ? (
                               <>
-                                <div className="flex items-center gap-2 mb-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                <div className="flex items-center gap-2 mb-1 text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                                   {isOutgoing ? "Sent Button Option" : "Clicked Button"}
                                 </div>
-                                <div className="inline-flex items-center px-4 py-2 border-2 border-emerald-500/20 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 font-semibold text-sm rounded-xl select-none shadow-sm">
+                                <div className="inline-flex items-center px-4 py-2 border-2 border-blue-500/20 dark:border-blue-500/40 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 font-semibold text-sm rounded-xl select-none shadow-sm">
                                   {messageText}
                                 </div>
                                 {failed && (
@@ -2594,7 +2851,7 @@ lg:relative lg:flex
                                         <FileText className="w-8 h-8 text-orange-500" />
                                         <div className="flex-1 min-w-0">
                                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate">Document</p>
-                                          <p className="text-xs text-emerald-600">Click to download</p>
+                                          <p className="text-xs text-blue-600">Click to download</p>
                                         </div>
                                       </a>
                                     )}
@@ -2652,7 +2909,7 @@ lg:relative lg:flex
               <div className="mb-3 min-h-0">
                 {/* File Preview */}
                 {selectedFile && (
-                  <div className="mb-2 flex items-center gap-2 bg-emerald-50 dark:bg-gray-700 rounded-lg p-3 border border-emerald-200 dark:border-emerald-600">
+                  <div className="mb-2 flex items-center gap-2 bg-blue-50 dark:bg-gray-700 rounded-lg p-3 border border-blue-200 dark:border-blue-600">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         📎 {selectedFile.name}
@@ -2708,9 +2965,9 @@ lg:relative lg:flex
 
                 {/* Audio Recording Preview */}
                 {audioBlob && (
-                  <div className="mb-2 flex items-center gap-2 bg-emerald-50 dark:bg-gray-700 rounded-lg p-3 border border-emerald-200 dark:border-emerald-600">
+                  <div className="mb-2 flex items-center gap-2 bg-blue-50 dark:bg-gray-700 rounded-lg p-3 border border-blue-200 dark:border-blue-600">
                     <div className="flex-1 flex items-center gap-3">
-                      <div className="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                         <Mic size={16} className="text-white" />
                       </div>
                       <div>
@@ -2752,7 +3009,7 @@ lg:relative lg:flex
                       </button>
                       <button
                         onClick={stopRecording}
-                        className="px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors"
+                        className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
                       >
                         Stop
                       </button>
@@ -2762,7 +3019,7 @@ lg:relative lg:flex
               </div>
 
               {/* Input Bar - Fixed Position */}
-              <div className="flex items-center gap-3 bg-white dark:bg-gray-800 rounded-full px-4 py-3 shadow-md border-2 border-emerald-300 dark:border-emerald-500">
+              <div className="flex items-center gap-3 bg-white dark:bg-gray-800 rounded-full px-4 py-3 shadow-md border-2 border-blue-300 dark:border-blue-500">
                 {/* Hidden File Input */}
                 <input
                   ref={fileInputRef}
@@ -2778,19 +3035,19 @@ lg:relative lg:flex
                     size={20}
                     onClick={() => isWindowOpenFromAPI && setShowAttachMenu(!showAttachMenu)}
                     className={`attach-button ${iconJumpAnimation} ${isWindowOpenFromAPI
-                      ? "text-emerald-600 cursor-pointer hover:text-emerald-700"
+                      ? "text-blue-600 cursor-pointer hover:text-blue-700"
                       : "text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-60"
                       }`}
                   />
 
                   {showAttachMenu && (
-                    <div className="attach-menu absolute bottom-12 left-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-emerald-200 dark:border-emerald-600 p-2 w-48 z-50 space-y-1">
+                    <div className="attach-menu absolute bottom-12 left-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-blue-200 dark:border-blue-600 p-2 w-48 z-50 space-y-1">
                       <button
                         onClick={() => {
                           fileInputRef.current?.click();
                           setShowAttachMenu(false);
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-emerald-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
                       >
                         <span className="text-lg">📷</span>
                         <span>Upload File</span>
@@ -2801,7 +3058,7 @@ lg:relative lg:flex
                           setShowAttachMenu(false);
                           setShowGalleryPicker(true);
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-emerald-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-100 dark:hover:bg-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200 transition-colors"
                       >
                         <Image size={18} className="text-purple-500" />
                         <span>From Gallery</span>
@@ -2815,7 +3072,7 @@ lg:relative lg:flex
                   <button
                     type="button"
                     onClick={() => setShowTemplateSelector(true)}
-                    className="text-slate-500 dark:text-slate-300 hover:text-emerald-500 transition-colors"
+                    className="text-slate-500 dark:text-slate-300 hover:text-blue-500 transition-colors"
                   >
                     <FileText size={20} />
                   </button>
@@ -2848,7 +3105,7 @@ lg:relative lg:flex
                       isSendingMedia ||
                       !isWindowOpenFromAPI
                     }
-                    className="btn-primary p-2 rounded-full transition-transform hover:scale-110 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+                    className="btn-primary p-2 rounded-full transition-transform hover:scale-110 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                   >
                     {sendMessageMutation.isPending || isSendingMedia ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2869,12 +3126,12 @@ lg:relative lg:flex
                         ? "bg-gray-200 dark:bg-gray-600 text-gray-400 cursor-not-allowed opacity-60"
                         : isRecording
                           ? "bg-red-500 text-white animate-pulse"
-                          : "bg-white text-emerald-700 dark:bg-gray-700 border border-emerald-600 dark:border-emerald-600 hover:bg-emerald-600 hover:text-white"
+                          : "bg-white text-blue-700 dark:bg-gray-700 border border-blue-600 dark:border-blue-600 hover:bg-blue-600 hover:text-white"
                         }`}
                     >
                       <Mic size={18} />
                     </button>
-                    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-emerald-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
+                    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-blue-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
                       {!isWindowOpenFromAPI ? "Please wait for 24H to reply" : isRecording ? "Stop Recording" : "Voice Message"}
                     </span>
                   </div>
