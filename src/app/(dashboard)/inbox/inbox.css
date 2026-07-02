@@ -8,6 +8,7 @@
 .inbox-page {
   background: #ffffff;
   border-radius: 0 !important;
+  overflow: hidden !important;
 }
 
 /* Remove all rounded corners from inbox page */
@@ -33,11 +34,11 @@
 }
 
 .inbox-page .message.incoming .bubble {
-  border-top-left-radius: 4px !important;
+  border-start-start-radius: 4px !important;
 }
 
 .inbox-page .message.outgoing .bubble {
-  border-top-right-radius: 4px !important;
+  border-start-end-radius: 4px !important;
 }
 
 .inbox-page .template-button {
@@ -48,7 +49,7 @@
   border-radius: 8px !important;
 }
 
-.inbox-page input[type="text"],
+.inbox-page input[type='text'],
 .inbox-page .message-input {
   border-radius: 8px !important;
 }
@@ -70,27 +71,27 @@
   align-items: center;
 
   flex-shrink: 0 !important;
-  width: 80px !important;
+  inline-size: 80px !important;
 }
 
 /* Icon Sidebar - Solid Light Mint-Cyan */
 .inbox-page .icon-sidebar {
   background: #dbeafe !important;
-  border-right: none !important;
+  border-inline-end: none !important;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04) !important;
 }
 
 /* Light Mode Sidebar - Very Light Mint-Cyan */
 .light .inbox-page .icon-sidebar {
   background: #eff6ff !important;
-  border-right: none !important;
+  border-inline-end: none !important;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.03) !important;
 }
 
 /* Dark Mode Sidebar - Light Mint-Cyan */
 .dark .inbox-page .icon-sidebar {
   background: #3b82f6 !important;
-  border-right: none !important;
+  border-inline-end: none !important;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15) !important;
 }
 
@@ -100,8 +101,8 @@
   background: rgba(219, 234, 254, 0.7);
   color: #2563eb;
   border: none;
-  width: 56px;
-  height: 56px;
+  inline-size: 56px;
+  block-size: 56px;
   border-radius: 50% !important;
   display: flex;
   align-items: center;
@@ -111,7 +112,6 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transform: none;
 }
-
 
 /* Light Mode Icon Buttons - NO HOVER */
 .light .inbox-page .icon-button,
@@ -130,8 +130,8 @@
   color: #2563eb !important;
   border: none !important;
   box-shadow: none !important;
-  width: 56px !important;
-  height: 56px !important;
+  inline-size: 56px !important;
+  block-size: 56px !important;
   transform: none !important;
 }
 /* ==========================================
@@ -187,8 +187,8 @@
   color: #2563eb !important;
   stroke: #2563eb !important;
   fill: none !important;
-  width: 24px;
-  height: 24px;
+  inline-size: 24px;
+  block-size: 24px;
 }
 
 .light .inbox-page .icon-button svg {
@@ -203,7 +203,7 @@
 
 /* ICON CONTAINER */
 .inbox-page .icon-container {
-  width: 100%;
+  inline-size: 100%;
   display: flex;
   justify-content: center;
   position: relative;
@@ -212,18 +212,19 @@
 /* TOOLTIP */
 .inbox-page .icon-tooltip {
   position: absolute;
-  left: calc(100% + 12px);
-  top: 50%;
+  inset-inline-start: calc(100% + 12px);
+  inset-block-start: 50%;
   transform: translateY(-50%);
   background: #1f2937;
   color: #ffffff;
-  padding: 8px 12px;
+  padding-block: 8px;
+  padding-inline: 12px;
   border-radius: 8px;
   font-size: 13px;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity .2s !important;
+  transition: opacity 0.2s !important;
   z-index: 100;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
@@ -243,32 +244,35 @@
 
 .inbox-page .contacts-sidebar {
   background: #ffffff;
-  border-right: 1px solid #e5e7eb;
+  border-inline-end: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  block-size: 100%;
+  overflow-x: hidden !important;
+  min-inline-size: 0;
 }
 
 .light .inbox-page .contacts-sidebar {
   background: #ffffff;
-  border-right: 1px solid #e5e7eb;
+  border-inline-end: 1px solid #e5e7eb;
 }
 
 .dark .inbox-page .contacts-sidebar {
   background: #1f2937;
-  border-right: 1px solid #374151;
+  border-inline-end: 1px solid #374151;
 }
 
 /* HEADER - Mint Green */
 .inbox-page .contacts-header {
   background: #1f2937;
   color: #ffffff;
-  min-height: 72px;
-  padding: 16px 20px;
+  min-block-size: 72px;
+  padding-block: 16px;
+  padding-inline: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #374151;
+  border-block-end: 1px solid #374151;
   font-size: 20px;
   font-weight: 600;
 }
@@ -276,14 +280,14 @@
 .light .inbox-page .contacts-header {
   background: #ffffff !important;
   color: #111827 !important;
-  border-bottom: 1px solid #e5e7eb;
+  border-block-end: 1px solid #e5e7eb;
 }
 
 /* Dark mode header styling */
 .dark .inbox-page .contacts-header {
   background: #1f2937 !important;
   color: #ffffff !important;
-  border-bottom: 1px solid #374151;
+  border-block-end: 1px solid #374151;
 }
 
 /* Ensure Inbox text and menu dots match the white background in light mode */
@@ -307,21 +311,25 @@
 .inbox-page .contact-item:hover,
 .inbox-page .contact-item:focus,
 .inbox-page .contact-item:active {
-  border-bottom: 1px solid #f3f4f6;
+  border-block-end: 1px solid #f3f4f6;
   color: #111827;
-  padding: 16px 20px;
+  padding-block: 16px;
+  padding-inline: 20px;
   cursor: pointer;
   background: transparent !important;
   transition: none !important;
   transform: none !important;
   box-shadow: none !important;
+  overflow: hidden !important;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 .light .inbox-page .contact-item,
 .light .inbox-page .contact-item:hover,
 .light .inbox-page .contact-item:focus,
 .light .inbox-page .contact-item:active {
-  border-bottom: 1px solid #f3f4f6 !important;
+  border-block-end: 1px solid #f3f4f6 !important;
   background: transparent !important;
 }
 
@@ -329,7 +337,7 @@
 .dark .inbox-page .contact-item:hover,
 .dark .inbox-page .contact-item:focus,
 .dark .inbox-page .contact-item:active {
-  border-bottom: 1px solid rgba(55, 65, 81, 0.3) !important;
+  border-block-end: 1px solid rgba(55, 65, 81, 0.3) !important;
   background: transparent !important;
 }
 
@@ -350,19 +358,19 @@
 /* Selected state only */
 .inbox-page .contact-item.selected {
   background: #eff6ff !important;
-  border-left: 4px solid #bfdbfe;
+  border-inline-start: 4px solid #bfdbfe;
 }
 
 .light .inbox-page .contact-item.selected {
   background: #eff6ff !important;
-  border-left: 4px solid #bfdbfe !important;
-  border-bottom: 1px solid #f3f4f6 !important;
+  border-inline-start: 4px solid #bfdbfe !important;
+  border-block-end: 1px solid #f3f4f6 !important;
 }
 
 .dark .inbox-page .contact-item.selected {
   background: #eff6ff !important;
-  border-left: 4px solid #60a5fa !important;
-  border-bottom: 1px solid rgba(55, 65, 81, 0.3) !important;
+  border-inline-start: 4px solid #60a5fa !important;
+  border-block-end: 1px solid rgba(55, 65, 81, 0.3) !important;
 }
 
 /* Selected contact text visibility fix */
@@ -375,17 +383,16 @@
   color: #374151 !important;
 }
 
-
 /* AVATARS */
 .inbox-page .contact-avatar {
   background: #bfdbfe !important;
   color: #1e40af !important;
   font-weight: 600 !important;
   font-size: 16px !important;
-  width: 52px !important;
-  height: 52px !important;
-  min-width: 52px !important;
-  min-height: 52px !important;
+  inline-size: 52px !important;
+  block-size: 52px !important;
+  min-inline-size: 52px !important;
+  min-block-size: 52px !important;
   border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
@@ -423,10 +430,10 @@
   color: #1e40af !important;
   font-weight: 600 !important;
   border-radius: 50% !important;
-  width: 52px !important;
-  height: 52px !important;
-  min-width: 52px !important;
-  min-height: 52px !important;
+  inline-size: 52px !important;
+  block-size: 52px !important;
+  min-inline-size: 52px !important;
+  min-block-size: 52px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -450,8 +457,8 @@
   background: #bfdbfe;
   color: #1e40af;
   font-weight: 600;
-  min-width: 22px;
-  height: 22px;
+  min-inline-size: 22px;
+  block-size: 22px;
   font-size: 12px;
 }
 
@@ -475,8 +482,8 @@
   background: #eef7f6;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 0; /* allow flex child to shrink so messages area can scroll */
+  block-size: 100%;
+  min-block-size: 0; /* allow flex child to shrink so messages area can scroll */
 }
 
 .light .inbox-page .chat-area {
@@ -503,9 +510,10 @@
 /* Chat Header - White/Clean */
 .inbox-page .chat-area .contacts-header {
   background: #ffffff !important;
-  border-bottom: 1px solid #e5e7eb;
-  min-height: 72px;
-  padding: 16px 20px;
+  border-block-end: 1px solid #e5e7eb;
+  min-block-size: 72px;
+  padding-block: 16px;
+  padding-inline: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -514,13 +522,13 @@
 
 .light .inbox-page .chat-area .contacts-header {
   background: #ffffff !important;
-  border-bottom: 1px solid #e5e7eb !important;
+  border-block-end: 1px solid #e5e7eb !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
 }
 
 .dark .inbox-page .chat-area .contacts-header {
   background: #1f2937 !important;
-  border-bottom: none !important;
+  border-block-end: none !important;
   box-shadow: none !important;
   color: #f3f4f6 !important;
 }
@@ -604,8 +612,10 @@
 /* Date grouping badge (Today, Yesterday, date) */
 .inbox-page .chat-date-badge {
   align-self: center;
-  padding: 6px 12px;
-  margin: 8px 0;
+  padding-block: 6px;
+  padding-inline: 12px;
+  margin-block: 8px;
+  margin-inline: 0;
   font-size: 12px;
   font-weight: 500;
   color: #666;
@@ -621,7 +631,7 @@
 /* Message wrapper */
 .inbox-page .message {
   display: flex;
-  margin-bottom: 0;
+  margin-block-end: 0;
 }
 
 .inbox-page .message.incoming {
@@ -634,9 +644,10 @@
 
 /* Bubble */
 .inbox-page .bubble {
-  max-width: 85%;
-  min-width: 0;
-  padding: 12px 14px;
+  max-inline-size: 85%;
+  min-inline-size: 0;
+  padding-block: 12px;
+  padding-inline: 14px;
   border-radius: 14px;
   background: #ffffff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -646,13 +657,13 @@
 /* Incoming */
 .inbox-page .message.incoming .bubble {
   background: #ffffff;
-  border-top-left-radius: 4px;
+  border-start-start-radius: 4px;
 }
 
 /* Outgoing */
 .inbox-page .message.outgoing .bubble {
   background: #dbeafe;
-  border-top-right-radius: 4px;
+  border-start-end-radius: 4px;
 }
 
 /* Failed message tint */
@@ -663,17 +674,17 @@
 /* Template sections */
 .inbox-page .template-header {
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-block-end: 6px;
   overflow: hidden;
 }
 
 /* Constrain template header images to fit chat bubble */
 .inbox-page .template-header-image {
   display: block;
-  max-width: 280px;
-  max-height: 200px;
-  width: 100%;
-  height: auto;
+  max-inline-size: 280px;
+  max-block-size: 200px;
+  inline-size: 100%;
+  block-size: auto;
   object-fit: cover;
   border-radius: 8px;
 }
@@ -694,7 +705,7 @@
 .inbox-page .template-footer {
   font-size: 12px;
   color: #777;
-  margin-top: 6px;
+  margin-block-start: 6px;
 }
 
 /* Template button */
@@ -704,7 +715,7 @@
   justify-content: center;
   gap: 6px;
   text-align: center;
-  margin-top: 10px;
+  margin-block-start: 10px;
   padding: 8px;
   border-radius: 8px;
   background: #e6f0ff;
@@ -720,7 +731,7 @@
 
 /* Error block */
 .inbox-page .error-box {
-  margin-top: 10px;
+  margin-block-start: 10px;
   padding: 10px;
   border-radius: 8px;
   background: #fdecea;
@@ -736,7 +747,7 @@
   gap: 6px;
   font-size: 11px;
   color: #666;
-  margin-top: 8px;
+  margin-block-start: 8px;
 }
 
 .inbox-page .meta.error {
@@ -798,8 +809,7 @@
 /* Filter chips (top row) */
 .inbox-page .filter-chips button {
   border: 1px solid transparent;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-inline: 10px;
 }
 
 .inbox-page .filter-chips button {
@@ -813,12 +823,12 @@
 
 /* Filter dropdown styles */
 .inbox-page .filter-dropdown {
-  min-width: 260px;
+  min-inline-size: 260px;
 }
 
 .inbox-page .filter-dropdown .w-8.h-8 {
-  min-width: 32px;
-  min-height: 32px;
+  min-inline-size: 32px;
+  min-block-size: 32px;
 }
 
 .inbox-page .filter-dropdown button {
@@ -826,10 +836,10 @@
 }
 
 .inbox-page .filter-dropdown::-webkit-scrollbar {
-  width: 8px;
+  inline-size: 8px;
 }
 .inbox-page .filter-dropdown::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.12);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 999px;
 }
 
@@ -842,12 +852,13 @@
 =================================*/
 
 /* Search input in contacts sidebar - NO HOVER */
-.inbox-page .contacts-sidebar input[type="text"],
-.inbox-page .contacts-sidebar input[placeholder*="Search"] {
+.inbox-page .contacts-sidebar input[type='text'],
+.inbox-page .contacts-sidebar input[placeholder*='Search'] {
   background: #eff6ff !important;
   border: 1px solid rgba(59, 130, 246, 0.3) !important;
   color: #111827 !important;
-  padding: 12px 16px !important;
+  padding-block: 12px !important;
+  padding-inline: 16px !important;
   border-radius: 8px !important;
   font-size: 14px !important;
 }
@@ -858,70 +869,72 @@
 }
 
 .inbox-page .contacts-sidebar .search-wrap .search-icon {
-  left: 14px;
+  inset-inline-start: 14px;
   z-index: 2;
 }
 
 .inbox-page .contacts-sidebar input.search-input {
-  height: 44px !important;
+  block-size: 44px !important;
   line-height: 1.2 !important;
-  padding: 10px 12px 10px 44px !important;
+  padding-block: 10px !important;
+  padding-inline: 44px 12px !important;
   font-size: 14px !important;
 }
 
 .light .inbox-page .contacts-sidebar input.search-input,
 .dark .inbox-page .contacts-sidebar input.search-input {
-  padding: 10px 12px 10px 44px !important;
+  padding-block: 10px !important;
+  padding-inline: 44px 12px !important;
 }
 
-.light .inbox-page .contacts-sidebar input[type="text"],
-.light .inbox-page .contacts-sidebar input[placeholder*="Search"] {
+.light .inbox-page .contacts-sidebar input[type='text'],
+.light .inbox-page .contacts-sidebar input[placeholder*='Search'] {
   background: #eff6ff !important;
   border: 1px solid rgba(59, 130, 246, 0.3) !important;
   color: #111827 !important;
 }
 
-.dark .inbox-page .contacts-sidebar input[type="text"],
-.dark .inbox-page .contacts-sidebar input[placeholder*="Search"] {
+.dark .inbox-page .contacts-sidebar input[type='text'],
+.dark .inbox-page .contacts-sidebar input[placeholder*='Search'] {
   background: #374151 !important;
   border: 1px solid rgba(191, 219, 254, 0.2) !important;
   color: #f3f4f6 !important;
 }
 
-.inbox-page .contacts-sidebar input[type="text"]:focus,
-.inbox-page .contacts-sidebar input[placeholder*="Search"]:focus {
+.inbox-page .contacts-sidebar input[type='text']:focus,
+.inbox-page .contacts-sidebar input[placeholder*='Search']:focus {
   border-color: #3b82f6 !important;
   outline: none !important;
   background: #ffffff !important;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
 }
 
-.light .inbox-page .contacts-sidebar input[type="text"]:focus,
-.light .inbox-page .contacts-sidebar input[placeholder*="Search"]:focus {
+.light .inbox-page .contacts-sidebar input[type='text']:focus,
+.light .inbox-page .contacts-sidebar input[placeholder*='Search']:focus {
   background: #ffffff !important;
   border-color: #3b82f6 !important;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
 }
 
-.dark .inbox-page .contacts-sidebar input[type="text"]:focus,
-.dark .inbox-page .contacts-sidebar input[placeholder*="Search"]:focus {
+.dark .inbox-page .contacts-sidebar input[type='text']:focus,
+.dark .inbox-page .contacts-sidebar input[placeholder*='Search']:focus {
   background: #1f2937 !important;
   border-color: #60a5fa !important;
   box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.1) !important;
 }
 
-.inbox-page .contacts-sidebar input[type="text"]::placeholder,
-.inbox-page .contacts-sidebar input[placeholder*="Search"]::placeholder {
+.inbox-page .contacts-sidebar input[type='text']::placeholder,
+.inbox-page .contacts-sidebar input[placeholder*='Search']::placeholder {
   color: #9ca3af !important;
 }
 
-.light .inbox-page .contacts-sidebar input[type="text"]::placeholder,
-.light .inbox-page .contacts-sidebar input[placeholder*="Search"]::placeholder {
+.light .inbox-page .contacts-sidebar input[type='text']::placeholder,
+.light .inbox-page .contacts-sidebar input[placeholder*='Search']::placeholder {
   color: #9ca3af !important;
 }
 
-.dark .inbox-page .contacts-sidebar input[type="text"]::placeholder,
-.dark .inbox-page .contacts-sidebar input[placeholder*="Search"]::placeholder {
+.dark .inbox-page .contacts-sidebar input[type='text']::placeholder,
+.dark .inbox-page .contacts-sidebar input[placeholder*='Search']::placeholder {
   color: #9ca3af !important;
 }
 
@@ -935,7 +948,8 @@
   color: #111827 !important;
   caret-color: #3b82f6 !important;
   font-size: 15px !important;
-  padding: 12px 16px !important;
+  padding-block: 12px !important;
+  padding-inline: 16px !important;
   border-radius: 8px !important;
 }
 
@@ -945,7 +959,8 @@
   color: #111827 !important;
   caret-color: #3b82f6 !important;
   font-size: 15px !important;
-  padding: 12px 16px !important;
+  padding-block: 12px !important;
+  padding-inline: 16px !important;
 }
 
 .dark .inbox-page .message-input {
@@ -954,7 +969,8 @@
   color: #f3f4f6 !important;
   caret-color: #60a5fa !important;
   font-size: 15px !important;
-  padding: 12px 16px !important;
+  padding-block: 12px !important;
+  padding-inline: 16px !important;
 }
 
 .inbox-page .message-input::placeholder {
@@ -983,18 +999,19 @@
 /* Input Container */
 .inbox-page .relative.w-full.px-5.py-4 {
   background: #ffffff;
-  border-top: 1px solid #e5e7eb;
-  padding: 16px 20px;
+  border-block-start: 1px solid #e5e7eb;
+  padding-block: 16px;
+  padding-inline: 20px;
 }
 
 .light .inbox-page .relative.w-full.px-5.py-4 {
   background: #ffffff;
-  border-top: 1px solid #e5e7eb;
+  border-block-start: 1px solid #e5e7eb;
 }
 
 .dark .inbox-page .relative.w-full.px-5.py-4 {
   background: #1f2937;
-  border-top: 1px solid #374151;
+  border-block-start: 1px solid #374151;
 }
 
 /* Input Bar Styling */
@@ -1087,7 +1104,8 @@
 
 .inbox-page .dropdown-item,
 .inbox-page .dropdown-item:hover {
-  padding: 10px 16px;
+  padding-block: 10px;
+  padding-inline: 16px;
   color: #111827;
   cursor: pointer;
   border-radius: 6px !important;
@@ -1136,7 +1154,8 @@
 .inbox-page .attach-menu button:hover {
   color: #111827;
   border-radius: 8px !important;
-  padding: 10px 12px;
+  padding-block: 10px;
+  padding-inline: 12px;
   font-size: 14px;
   background: transparent;
 }
@@ -1173,8 +1192,8 @@
 =================================*/
 
 .inbox-page ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  inline-size: 8px;
+  block-size: 8px;
 }
 
 .inbox-page ::-webkit-scrollbar-track {
@@ -1221,19 +1240,19 @@
 =================================*/
 
 @keyframes fadeInUp {
-  from { 
-    opacity: 0; 
-    transform: translateY(6px); 
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 .inbox-page .contact-item,
 .inbox-page .message .bubble {
-  animation: fadeInUp .18s ease-out;
+  animation: fadeInUp 0.18s ease-out;
 }
 
 /* ===============================
@@ -1283,13 +1302,13 @@
   .inbox-page .icon-sidebar {
     display: none;
   }
-  
+
   .inbox-page .contacts-sidebar {
-    border-right: none;
+    border-inline-end: none;
   }
-  
+
   .inbox-page .chat-area {
-    border-left: none;
+    border-inline-start: none;
   }
 }
 
@@ -1363,7 +1382,6 @@
 .dark .inbox-page .contact-item.selected .text-gray-500 {
   color: #374151 !important;
 }
-
 
 /* Clean, professional spacing */
 .inbox-page .contact-item .font-semibold {

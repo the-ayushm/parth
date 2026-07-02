@@ -1818,15 +1818,15 @@ export default function InboxPage() {
             {contact.initials}
           </div>
 
-          <div className="flex-1">
-            <p className="font-semibold">{contact.name}</p>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold truncate">{contact.name}</p>
             {contact.lastMessagePreview && (
-              <p className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-45">
+              <p className="text-xs text-gray-600 dark:text-gray-400 truncate w-full">
                 {formatPreviewText(contact.lastMessagePreview)}
               </p>
             )}
             {!contact.lastMessagePreview && contact.phone && (
-              <p className="text-xs text-gray-500">{contact.phone}</p>
+              <p className="text-xs text-gray-500 truncate">{contact.phone}</p>
             )}
             {Array.isArray(contact.tags) && contact.tags.length > 0 && (
               <div className="mt-1 flex gap-1 flex-wrap">
@@ -1901,13 +1901,13 @@ export default function InboxPage() {
 
   return (
     <div
-      className={`inbox-page h-[calc(100vh-32px)] md:h-[calc(100vh-64px)] rounded-[1.2rem] shadow-xl overflow-hidden border border-blue-500 dark:border-blue-500 relative w-full flex lg:grid lg:grid-cols-[380px_1fr] lg:grid-rows-1`}
+      className={`inbox-page h-[calc(100vh-73px)] overflow-hidden relative w-full flex lg:grid lg:grid-cols-[380px_1fr] lg:grid-rows-1`}
     >
       {/* Contacts Sidebar */}
       <div className={`contacts-sidebar flex-col lg:w-[380px] ${selectedContact ? "hidden lg:flex" : "flex"}`}>
         {/* Contacts Sidebar */}
         <div
-          className="contacts-sidebar w-full flex flex-col h-full border-r-2 border-blue-300 dark:border-blue-700"
+          className="contacts-sidebar w-full flex flex-col h-full border-r-2 border-blue-300 dark:border-blue-700 overflow-x-hidden"
         >
           {/* Header Section */}
           <div className="contacts-header bg-blue-600 text-white p-4 font-bold flex items-center justify-between relative border-b-2 border-blue-500 shadow-sm h-18 py-3.75 px-4">
@@ -2166,54 +2166,7 @@ export default function InboxPage() {
 
           {/* Search Bar + Filter Chips */}
           <div className="px-6 pt-4 pb-3 shrink-0">
-            {/* Top chips (All, CRM, Order Done, group) */}
-            <div className="mb-3 flex items-center gap-3 flex-wrap filter-chips">
-              {sideBarMenuIcon.map((it) => (
-                <div key={it.id} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (it.id === 'Tag') {
-                        setShowTagMenu((s) => !s);
-                      }
-                      setActiveIcon(it.id);
-                    }}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium border ${activeIcon === it.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}
-                  >
-                    {it.label}
-                  </button>
 
-                  {/* Tag dropdown when Tag icon clicked */}
-                  {it.id === 'Tag' && showTagMenu && Array.isArray(contactTags) && (
-                    <div className="absolute mt-2 left-0 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 shadow-lg z-60">
-                      {(contactTags as any[]).length === 0 && <div className="text-sm text-gray-500">No tags</div>}
-                      {(contactTags as any[]).map((tag: any) => (
-                        <button
-                          key={`dd-tag-${tag.id}`}
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); console.log('Inbox: tag dropdown clicked', tag); setSelectedTag((s) => (s === String(tag.id) ? null : String(tag.id))); setShowTagMenu(false); }}
-                          className={`w-full text-left px-2 py-1 rounded text-sm ${selectedTag === String(tag.id) ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-                        >
-                          {tag.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {/* Inline tag chips (falls back if tag menu not used) */}
-              {Array.isArray(contactTags) && contactTags.length > 0 && contactTags.map((tag: any) => (
-                <button
-                  key={`tag-${tag.id}`}
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); console.log('Inbox: tag clicked', tag); setSelectedTag((s) => (s === String(tag.id) ? null : String(tag.id))); }}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium border pointer-events-auto cursor-pointer ${selectedTag === String(tag.id) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}
-                >
-                  {tag.name}
-                </button>
-              ))}
-            </div>
 
             <div className="relative flex items-center gap-3">
               <div className="relative flex-1">
@@ -2322,7 +2275,7 @@ export default function InboxPage() {
 
           {/* Chat Messages */}
           <div
-            className="flex-1 overflow-y-auto"
+            className="flex-1 overflow-y-auto overflow-x-hidden"
             style={{
               minHeight: 0,
               scrollbarWidth: 'thin',

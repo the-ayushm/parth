@@ -24,7 +24,7 @@ export default function EditUserPage() {
         const fetchUser = async () => {
             try {
                 setLoading(true);
-                const response = await api.get(`/users/${params.id}`);
+                const response = await api.get(`/admin/companies/user/${params.id}`);
                 const userData = response.data || response;
                 if (userData) {
                     setFormData({
@@ -67,7 +67,7 @@ export default function EditUserPage() {
                 status: formData.status.toLowerCase(),
             };
 
-            const response = await api.put(`/users/${params.id}`, payload);
+            const response = await api.put(`/admin/companies/user/${params.id}`, payload);
 
             if (response.data || response) {
                 toast.success('User updated successfully');

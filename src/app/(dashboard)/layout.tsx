@@ -446,7 +446,7 @@ export default function DashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className="p-4 lg:p-8 overflow-x-hidden">{children}</main>
+        <main className={clsx('overflow-x-hidden', pathname === '/inbox' ? 'p-0' : 'p-4 lg:p-8')}>{children}</main>
       </div>
     </div>
   );
