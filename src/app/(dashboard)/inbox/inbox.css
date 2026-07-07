@@ -681,8 +681,8 @@
 /* Constrain template header images to fit chat bubble */
 .inbox-page .template-header-image {
   display: block;
-  max-inline-size: 280px;
-  max-block-size: 200px;
+  max-inline-size: 260px;
+  max-block-size: 320px;
   inline-size: 100%;
   block-size: auto;
   object-fit: cover;

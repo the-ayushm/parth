@@ -126,10 +126,10 @@ export default function DashboardLayout({
       >
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
               <Image
-                src="/images/logo/logo.jpeg"
-                alt="Surefy"
+                src="/images/logo/chotu-logo.jpeg"
+                alt="Chotu"
                 width={32}
                 height={32}
                 className="object-cover"
@@ -178,7 +178,7 @@ export default function DashboardLayout({
           </Link>
 
 
-          {/* 
+          {/*
           <Link
             href="/contacts"
             onClick={() => setSidebarOpen(false)}

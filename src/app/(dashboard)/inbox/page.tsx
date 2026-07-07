@@ -550,6 +550,9 @@ export default function InboxPage() {
   const [isHeaderUserDropdownOpen, setIsHeaderUserDropdownOpen] = useState(false);
   const [headerUserSearchQuery, setHeaderUserSearchQuery] = useState('');
   const [pendingAssignUserId, setPendingAssignUserId] = useState<string | null | undefined>(undefined);
+  const [pendingShowDetails, setPendingShowDetails] = useState<boolean>(true);
+  const [pendingCanChat, setPendingCanChat] = useState<boolean>(true);
+  const [contactPermissions, setContactPermissions] = useState<{ show_details: boolean; can_chat: boolean } | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -691,6 +694,25 @@ export default function InboxPage() {
     },
   });
 
+  const fetchContactPermissions = async (contactId: string) => {
+    try {
+      const response = await api.get(`/admin/contacts/${contactId}/assigned`);
+      const data = response.data;
+      if (Array.isArray(data) && data.length > 0) {
+        const perm = data[0];
+        setContactPermissions({
+          show_details: perm.show_details ?? true,
+          can_chat: perm.can_chat ?? true,
+        });
+      } else {
+        setContactPermissions({ show_details: true, can_chat: true });
+      }
+    } catch (err) {
+      console.error('Failed to fetch contact permissions:', err);
+      setContactPermissions({ show_details: true, can_chat: true });
+    }
+  };
+
   const handleContactSelect = (contact: Contact) => {
     console.log("DEBUG: handleContactSelect clicked contact:", { id: contact.id, dbId: contact.dbId, name: contact.name });
     setSelectedContact({ ...contact, unreadCount: 0 });
@@ -708,6 +730,10 @@ export default function InboxPage() {
         c.id === contact.id ? { ...c, unreadCount: 0 } : c
       );
     });
+
+    // Fetch permissions for this contact
+    const targetContactId = contact.dbId || String(contact.id);
+    fetchContactPermissions(targetContactId);
   };
 
   // Fetch users list once on mount
@@ -735,12 +761,17 @@ export default function InboxPage() {
     }
   };
 
-  const handleHeaderAssignContact = async (userId: string) => {
+  const handleHeaderAssignContact = async (userId: string, showDetails: boolean, canChat: boolean) => {
     if (!selectedContact) return;
     const targetContactId = selectedContact.dbId || String(selectedContact.id);
     const toastId = toast.loading('Assigning contact...');
     try {
-      await api.updateContact(targetContactId, { assigned_to: userId });
+      const params = new URLSearchParams({
+        assigned_to: userId,
+        show_details: String(showDetails),
+        can_chat: String(canChat),
+      });
+      await api.post(`/admin/contacts/${targetContactId}/assigned?${params.toString()}`);
 
       // Update local state
       setSelectedContact((prev) => prev ? { ...prev, assigned_to: userId } : null);
@@ -765,6 +796,9 @@ export default function InboxPage() {
         isLoading: false,
         autoClose: 3000,
       });
+
+      // Refresh permissions
+      fetchContactPermissions(targetContactId);
     } catch (err: any) {
       console.error('Failed to assign contact:', err);
       toast.update(toastId, {
@@ -1819,14 +1853,18 @@ export default function InboxPage() {
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate">{contact.name}</p>
+            <p className={`font-semibold truncate ${isSelected && contactPermissions && !contactPermissions.show_details ? 'blur-sm select-none' : ''}`}>
+              {contact.name}
+            </p>
             {contact.lastMessagePreview && (
               <p className="text-xs text-gray-600 dark:text-gray-400 truncate w-full">
                 {formatPreviewText(contact.lastMessagePreview)}
               </p>
             )}
             {!contact.lastMessagePreview && contact.phone && (
-              <p className="text-xs text-gray-500 truncate">{contact.phone}</p>
+              <p className={`text-xs text-gray-500 truncate ${isSelected && contactPermissions && !contactPermissions.show_details ? 'blur-sm select-none' : ''}`}>
+                {contact.phone}
+              </p>
             )}
             {Array.isArray(contact.tags) && contact.tags.length > 0 && (
               <div className="mt-1 flex gap-1 flex-wrap">
@@ -1934,7 +1972,7 @@ export default function InboxPage() {
               {showInboxMenu && (
                 <div
                   ref={inboxMenuRef}
-                  className="dropdown-menu absolute top-0 left-full ml-1 w-64 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded-lg shadow-lg z-50 p-3 space-y-2"
+                  className="dropdown-menu absolute top-full right-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] p-3 space-y-2"
                 >
                   {/* Unread Row */}
                   <div
@@ -1946,7 +1984,7 @@ export default function InboxPage() {
                           : "unreadTime",
                       )
                     }
-                    className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 px-2 py-1 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 dark:hover:text-white rounded"
+                    className="dropdown-item text-sm font-normal text-blue-600 px-2 py-1 cursor-pointer hover:bg-blue-50 rounded"
                   >
                     Unread
                   </div>
@@ -1955,7 +1993,7 @@ export default function InboxPage() {
                   {activeSubMenu === "unreadTime" && unreadRef.current && (
                     <>
                       <div
-                        className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-48 space-y-2"
+                        className="absolute z-50 bg-white border border-blue-200 rounded shadow-lg p-3 w-48 space-y-2"
                         style={{
                           top: unreadRef.current?.offsetTop,
                           left:
@@ -1970,14 +2008,14 @@ export default function InboxPage() {
                             setShowDatePicker(!showDatePicker);
                             setShowTimeRange(false);
                           }}
-                          className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                          className="dropdown-item text-sm font-normal text-blue-600 cursor-pointer hover:bg-blue-50 rounded"
                         >
                           Date
                         </div>
 
                         {showDatePicker && dateRef.current && (
                           <div
-                            className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-56"
+                            className="absolute z-50 bg-white border border-blue-200 rounded shadow-lg p-3 w-56"
                             style={{
                               top: (dateRef.current?.offsetTop ?? 0) + 5,
                               left:
@@ -1988,7 +2026,7 @@ export default function InboxPage() {
                           >
                             <input
                               type="date"
-                              className="w-full px-2 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 cursor-pointer"
+                              className="w-full px-2 py-2 text-sm border border-blue-200 rounded bg-white cursor-pointer"
                             />
                           </div>
                         )}
@@ -1999,7 +2037,7 @@ export default function InboxPage() {
                             setShowTimeRange(!showTimeRange);
                             setShowDatePicker(false);
                           }}
-                          className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                          className="dropdown-item text-sm font-normal text-blue-600 cursor-pointer hover:bg-blue-50 rounded"
                         >
                           Time
                         </div>
@@ -2014,7 +2052,7 @@ export default function InboxPage() {
                         ].map((label) => (
                           <div
                             key={label}
-                            className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                            className="dropdown-item text-sm font-normal text-blue-600 cursor-pointer hover:bg-blue-50 rounded"
                           >
                             {label}
                           </div>
@@ -2023,7 +2061,7 @@ export default function InboxPage() {
 
                       {showTimeRange && timeRef.current && (
                         <div
-                          className="absolute z-50 bg-white dark:bg-gray-800 border border-blue-600 dark:border-blue-700 rounded shadow-lg p-3 w-62.5 min-w-62.5"
+                          className="absolute z-50 bg-white border border-blue-200 rounded shadow-lg p-3"
                           style={{
                             top: timeRef.current?.offsetTop || 0,
                             left:
@@ -2034,7 +2072,7 @@ export default function InboxPage() {
                           }}
                         >
                           <div className="flex items-center justify-between gap-1 mb-2">
-                            <select className="w-25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 dark:text-white">
+                            <select className="w-25 px-1 py-1 text-xs border border-blue-200 rounded bg-white text-gray-800">
                               {[...Array(12)]
                                 .map((_, i) =>
                                   i === 0 ? "12:00" : `${i}:00`,
@@ -2043,7 +2081,7 @@ export default function InboxPage() {
                                   <option key={time}>{time}</option>
                                 ))}
                             </select>
-                            <select className="w-26.25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
+                            <select className="w-26.25 px-1 py-1 text-xs border border-blue-200 rounded bg-white text-gray-800">
                               {["AM", "PM"].map((meridian) => (
                                 <option key={meridian}>{meridian}</option>
                               ))}
@@ -2051,7 +2089,7 @@ export default function InboxPage() {
                           </div>
 
                           <div className="flex items-center justify-between gap-1">
-                            <select className="w-25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 dark:text-white">
+                            <select className="w-25 px-1 py-1 text-xs border border-blue-200 rounded bg-white text-gray-800">
                               {[...Array(12)]
                                 .map((_, i) =>
                                   i === 0 ? "12:00" : `${i}:00`,
@@ -2060,7 +2098,7 @@ export default function InboxPage() {
                                   <option key={time}>{time}</option>
                                 ))}
                             </select>
-                            <select className="w-26.25 px-1 py-1 text-xs border border-blue-600 dark:border-blue-700 rounded bg-white text-black dark:bg-gray-700 dark:text-white">
+                            <select className="w-26.25 px-1 py-1 text-xs border border-blue-200 rounded bg-white text-gray-800">
                               {["AM", "PM"].map((meridian) => (
                                 <option key={meridian}>{meridian}</option>
                               ))}
@@ -2080,13 +2118,13 @@ export default function InboxPage() {
                         setActiveSubMenu(null);
                         setShowInboxMenu(false);
                       }}
-                      className="dropdown-item w-full text-left text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                      className="dropdown-item w-full text-left text-sm font-normal text-blue-600 cursor-pointer hover:bg-blue-50 rounded"
                     >
                       {label}
                     </button>
                   ))}
 
-                  <div className="border-t border-blue-600 dark:border-blue-700 my-2" />
+                  <div className="border-t border-gray-100 my-2" />
 
                   <div className="space-y-2">
                     <div
@@ -2098,7 +2136,7 @@ export default function InboxPage() {
                             : "assignedTo",
                         )
                       }
-                      className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                      className="dropdown-item text-sm font-normal text-blue-600 cursor-pointer hover:bg-blue-50 rounded"
                     >
                       Assigned to
                     </div>
@@ -2118,7 +2156,7 @@ export default function InboxPage() {
                           <input
                             type="text"
                             placeholder="demo"
-                            className="w-48 px-3 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:hover:bg-blue-700 shadow-sm"
+                            className="w-48 px-3 py-2 text-sm border border-blue-200 rounded bg-white text-gray-800 shadow-sm"
                           />
                         </div>
                       )}
@@ -2132,7 +2170,7 @@ export default function InboxPage() {
                             : "phoneNumbers",
                         )
                       }
-                      className="dropdown-item text-sm font-normal text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 rounded"
+                      className="dropdown-item text-sm font-normal text-blue-600 cursor-pointer hover:bg-blue-50 rounded"
                     >
                       Phone number
                     </div>
@@ -2152,7 +2190,7 @@ export default function InboxPage() {
                           <input
                             type="text"
                             placeholder="number"
-                            className="w-48 px-3 py-2 text-sm border border-blue-600 dark:border-blue-700 rounded bg-white dark:bg-gray-700 shadow-sm"
+                            className="w-48 px-3 py-2 text-sm border border-blue-200 rounded bg-white text-gray-800 shadow-sm"
                           />
                         </div>
                       )}
@@ -2204,8 +2242,8 @@ export default function InboxPage() {
 
               {/* Filter dropdown */}
               {showFilterMenu && (
-                <div className="filter-dropdown absolute top-1/2 left-full ml-2 -translate-y-1/2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-3">
-                  <div className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-2">Filter Conversations</div>
+                <div className="filter-dropdown absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] p-3">
+                  <div className="text-sm font-semibold text-gray-700 mb-2">Filter Conversations</div>
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-blue-600">
                       <input type="checkbox" className="rounded" />
@@ -2221,9 +2259,9 @@ export default function InboxPage() {
                     </label>
                   </div>
 
-                  <div className="border-t border-gray-100 dark:border-gray-700 my-3" />
+                  <div className="border-t border-gray-100 my-3" />
 
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-100 mb-2">Select Phone Number</div>
+                  <div className="text-sm font-medium text-gray-700 mb-2">Select Phone Number</div>
                   <div className="space-y-1 max-h-48 overflow-auto">
                     {phoneNumbers.map((pn: any) => {
                       const id = String(pn.phoneNumberId || pn.id || pn.displayPhone || pn.phone_number);
@@ -2233,7 +2271,7 @@ export default function InboxPage() {
                         <button
                           key={id}
                           onClick={() => handlePhoneSelect(id)}
-                          className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'}`}
+                          className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-700'}`}
                         >
                           {disp}
                         </button>
@@ -2348,14 +2386,15 @@ lg:relative lg:flex
                     const headerPhone = removePlusPrefix(selectedContact?.phone || "");
                     const showHeaderPhone =
                       !!headerPhone && !isSamePhoneValue(headerName, headerPhone);
+                    const shouldBlur = contactPermissions && !contactPermissions.show_details;
 
                     return (
                       <>
-                        <span className="font-semibold text-black text-sm">
+                        <span className={`font-semibold text-black text-sm ${shouldBlur ? 'blur-sm select-none' : ''}`}>
                           {headerName}
                         </span>
                         {showHeaderPhone ? (
-                          <span className="text-xs text-blue-200">
+                          <span className={`text-xs text-blue-200 ${shouldBlur ? 'blur-sm select-none' : ''}`}>
                             {headerPhone}
                           </span>
                         ) : null}
@@ -2367,40 +2406,6 @@ lg:relative lg:flex
 
               {/* Action icons */}
               <div className="flex items-center gap-4 text-white">
-                <div className="relative group">
-                  <Phone
-                    size={18}
-                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
-                  />
-                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
-                    Audio call
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
-                  </span>
-                </div>
-
-                <div className="relative group">
-                  <Video
-                    size={18}
-                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
-                  />
-                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5">
-                    Video call
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
-                  </span>
-                </div>
-
-                <div className="relative group">
-                  <button
-                    onClick={() => setShowFAQFlow(!showFAQFlow)}
-                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200`}
-                  >
-                    <MessageSquare size={18} />
-                  </button>
-                  <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-blue-900 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap">
-                    FAQ Bot
-                  </span>
-                </div>
-
                 {/* Assign User Icon & Dropdown */}
                 <div className="relative group">
                   <button
@@ -2411,6 +2416,8 @@ lg:relative lg:flex
                       if (next) {
                         // Sync pending selection to current assignment when opening
                         setPendingAssignUserId(selectedContact?.assigned_to ?? '');
+                        setPendingShowDetails(true);
+                        setPendingCanChat(true);
                         setHeaderUserSearchQuery('');
                       }
                     }}
@@ -2440,11 +2447,11 @@ lg:relative lg:flex
 
                   {/* Popover Menu content */}
                   {isHeaderUserDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-[270px] rounded-xl shadow-2xl bg-white text-gray-900 border border-gray-200 z-[80] flex flex-col overflow-hidden">
+                    <div className="absolute right-0 mt-2 w-[320px] rounded-xl shadow-2xl bg-white text-gray-900 border border-gray-200 z-[80] flex flex-col overflow-hidden max-h-[480px]">
                       {/* Header */}
-                      <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
-                        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Assign Contact</p>
-                        <p className="text-xs font-medium text-gray-800 mt-0.5">
+                      <div className="px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Assign Contact</p>
+                        <p className="text-sm font-medium text-gray-800 mt-1">
                           Currently:{' '}
                           <span className={`font-semibold ${selectedContact?.assigned_to ? 'text-blue-600' : 'text-gray-400'}`}>
                             {!selectedContact?.assigned_to
@@ -2455,9 +2462,9 @@ lg:relative lg:flex
                       </div>
 
                       {/* Search Input */}
-                      <div className="px-3 py-2 border-b border-gray-100">
+                      <div className="px-4 py-3 border-b border-gray-100">
                         <div className="relative">
-                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                           <input
                             type="text"
                             placeholder="Search users..."
@@ -2465,36 +2472,36 @@ lg:relative lg:flex
                             onChange={(e) => setHeaderUserSearchQuery(e.target.value)}
                             onClick={(e) => e.stopPropagation()}
                             autoFocus
-                            className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
+                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-gray-50"
                           />
                         </div>
                       </div>
 
                       {/* Scrollable User List */}
-                      <div className="overflow-y-auto max-h-[220px] py-1">
+                      <div className="overflow-y-auto max-h-[320px] py-2">
                         {/* Remove Assignment option */}
                         <div
                           onClick={(e) => {
                             e.stopPropagation();
                             setPendingAssignUserId('');
                           }}
-                          className={`flex items-center gap-3 px-3 py-2 cursor-pointer select-none transition-colors ${pendingAssignUserId === ''
-                            ? 'bg-red-50 border-l-2 border-red-400'
-                            : 'hover:bg-gray-50 border-l-2 border-transparent'
+                          className={`flex items-center gap-3 mx-3 px-3 py-2.5 mb-1 rounded-lg cursor-pointer select-none transition-all ${pendingAssignUserId === ''
+                            ? 'bg-red-50 border border-red-200'
+                            : 'hover:bg-gray-50 border border-transparent'
                             }`}
                         >
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${pendingAssignUserId === ''
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${pendingAssignUserId === ''
                             ? 'border-red-500 bg-red-500'
                             : 'border-gray-300 bg-white'
                             }`}>
                             {pendingAssignUserId === '' && (
-                              <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                              <div className="w-2 h-2 rounded-full bg-white" />
                             )}
                           </div>
-                          <span className="text-xs font-semibold text-red-500">Remove Assignment</span>
+                          <span className="text-sm font-semibold text-red-600">Remove Assignment</span>
                         </div>
 
-                        <div className="mx-3 my-1 border-t border-gray-100" />
+                        <div className="mx-4 my-2 border-t border-gray-100" />
 
                         {/* Users list */}
                         {users
@@ -2507,33 +2514,70 @@ lg:relative lg:flex
                             const initials = (user.name || 'U').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
 
                             return (
-                              <div
-                                key={user.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPendingAssignUserId(String(user.id));
-                                }}
-                                className={`flex items-center gap-3 px-3 py-2 cursor-pointer select-none transition-colors ${isSelected
-                                  ? 'bg-blue-50 border-l-2 border-blue-500'
-                                  : 'hover:bg-gray-50 border-l-2 border-transparent'
-                                  }`}
-                              >
-                                {/* Custom radio indicator */}
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'
-                                  }`}>
-                                  {isSelected && (
-                                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                                  )}
+                              <div key={user.id} className="px-3 mb-1">
+                                {/* User row */}
+                                <div
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPendingAssignUserId(String(user.id));
+                                  }}
+                                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer select-none transition-all ${isSelected
+                                    ? 'bg-blue-50 border border-blue-200'
+                                    : 'hover:bg-gray-50 border border-transparent'
+                                    }`}
+                                >
+                                  {/* Radio indicator */}
+                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'}`}>
+                                    {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                  </div>
+                                  {/* Avatar */}
+                                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 shadow-sm">
+                                    {initials}
+                                  </div>
+                                  {/* Name + email */}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{user.name}</p>
+                                    <p className="text-xs text-gray-500 truncate mt-0.5">{user.email || user.phone || '—'}</p>
+                                  </div>
                                 </div>
-                                {/* Avatar */}
-                                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                                  {initials}
-                                </div>
-                                {/* Name + email */}
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-xs font-medium text-gray-900 truncate leading-none">{user.name}</p>
-                                  <p className="text-[10px] text-gray-400 truncate mt-0.5">{user.email || user.phone || '—'}</p>
-                                </div>
+
+                                {/* Options panel — only shown when this user is selected */}
+                                {isSelected && (
+                                  <div className="mx-3 mb-3 mt-2 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 shadow-sm" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <div className="w-1 h-5 bg-blue-500 rounded-full"></div>
+                                      <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Permissions</p>
+                                    </div>
+
+                                    {/* Show Details checkbox */}
+                                    <label className="flex items-center gap-3 mb-3 p-3 bg-white rounded-lg cursor-pointer hover:bg-blue-50 transition-all border border-gray-100 hover:border-blue-200 hover:shadow-sm">
+                                      <input
+                                        type="checkbox"
+                                        checked={pendingShowDetails}
+                                        onChange={(e) => setPendingShowDetails(e.target.checked)}
+                                        className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer flex-shrink-0"
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <span className="text-sm text-gray-800 font-semibold block">Show Details</span>
+                                        <span className="text-xs text-gray-500 block mt-0.5">View contact name & phone</span>
+                                      </div>
+                                    </label>
+
+                                    {/* Can Chat checkbox */}
+                                    <label className="flex items-center gap-3 p-3 bg-white rounded-lg cursor-pointer hover:bg-green-50 transition-all border border-gray-100 hover:border-green-200 hover:shadow-sm">
+                                      <input
+                                        type="checkbox"
+                                        checked={pendingCanChat}
+                                        onChange={(e) => setPendingCanChat(e.target.checked)}
+                                        className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-2 focus:ring-green-500 cursor-pointer flex-shrink-0"
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <span className="text-sm text-gray-800 font-semibold block">Can Chat</span>
+                                        <span className="text-xs text-gray-500 block mt-0.5">Send messages to this contact</span>
+                                      </div>
+                                    </label>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -2542,14 +2586,15 @@ lg:relative lg:flex
                           u.name?.toLowerCase().includes(headerUserSearchQuery.toLowerCase()) ||
                           u.email?.toLowerCase().includes(headerUserSearchQuery.toLowerCase())
                         ).length === 0 && (
-                            <div className="px-4 py-4 text-xs text-gray-400 text-center">
-                              No users found
+                            <div className="px-4 py-6 text-sm text-gray-400 text-center">
+                              <p className="font-medium">No users found</p>
+                              <p className="text-xs mt-1">Try a different search term</p>
                             </div>
                           )}
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="px-3 py-2.5 border-t border-gray-100 bg-gray-50 flex gap-2">
+                      <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex gap-3">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -2557,7 +2602,7 @@ lg:relative lg:flex
                             setIsHeaderUserDropdownOpen(false);
                             setHeaderUserSearchQuery('');
                           }}
-                          className="flex-1 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+                          className="flex-1 py-2.5 text-sm text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors font-semibold shadow-sm"
                         >
                           Cancel
                         </button>
@@ -2569,9 +2614,9 @@ lg:relative lg:flex
                             if (pendingAssignUserId === undefined) return;
                             setIsHeaderUserDropdownOpen(false);
                             setHeaderUserSearchQuery('');
-                            await handleHeaderAssignContact(pendingAssignUserId ?? '');
+                            await handleHeaderAssignContact(pendingAssignUserId ?? '', pendingShowDetails, pendingCanChat);
                           }}
-                          className="flex-1 py-1.5 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
+                          className="flex-1 py-2.5 text-sm text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-semibold shadow-sm"
                         >
                           Assign
                         </button>
@@ -2787,13 +2832,14 @@ lg:relative lg:flex
                                       <img
                                         src={msg.mediaUrl}
                                         alt="Sent image"
-                                        className="max-w-70 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                        className="block max-w-[260px] w-full h-auto rounded-lg cursor-pointer hover:opacity-90"
+                                        style={{ maxHeight: '320px', objectFit: 'cover' }}
                                         onClick={() => window.open(msg.mediaUrl!, "_blank")}
                                       />
                                     ) : msg.messageType === "video" || msg.mediaType?.startsWith("video/") ? (
-                                      <video src={msg.mediaUrl} controls className="max-w-70 rounded-lg" />
+                                      <video src={msg.mediaUrl} controls className="block max-w-[260px] w-full h-auto rounded-lg" />
                                     ) : msg.messageType === "audio" || msg.mediaType?.startsWith("audio/") ? (
-                                      <audio src={msg.mediaUrl} controls className="max-w-70" />
+                                      <audio src={msg.mediaUrl} controls className="w-full max-w-[260px]" />
                                     ) : (
                                       <a
                                         href={msg.mediaUrl}
@@ -3041,9 +3087,15 @@ lg:relative lg:flex
                       handleSend();
                     }
                   }}
-                  placeholder={isWindowOpenFromAPI ? "Type a message" : "Window closed"}
+                  placeholder={
+                    !contactPermissions?.can_chat
+                      ? "View-only access"
+                      : isWindowOpenFromAPI
+                        ? "Type a message"
+                        : "Window closed"
+                  }
                   className="message-input flex-1 bg-transparent outline-none text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                  disabled={isRecording || !isWindowOpenFromAPI}
+                  disabled={isRecording || !isWindowOpenFromAPI || !contactPermissions?.can_chat}
                 />
 
                 {/* Send Button / Mic */}
@@ -3056,7 +3108,8 @@ lg:relative lg:flex
                     disabled={
                       sendMessageMutation.isPending ||
                       isSendingMedia ||
-                      !isWindowOpenFromAPI
+                      !isWindowOpenFromAPI ||
+                      !contactPermissions?.can_chat
                     }
                     className="btn-primary p-2 rounded-full transition-transform hover:scale-110 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                   >
@@ -3070,7 +3123,7 @@ lg:relative lg:flex
                   <div className="relative group">
                     <button
                       onClick={() => {
-                        if (!isWindowOpenFromAPI) return;
+                        if (!isWindowOpenFromAPI || !contactPermissions?.can_chat) return;
                         if (isRecording) stopRecording();
                         else startRecording();
                       }}
