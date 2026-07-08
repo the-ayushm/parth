@@ -8,6 +8,7 @@ import React from "react";
 import { ReminderContent } from "@/components/reminders/ReminderContent";
 import FAQFlow from "@/components/FAQFlow";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/auth";
 import { TemplateSelectorModal } from "@/components/templates/TemplateSelectorModal";
 import { TemplateMessage } from "@/components/TemplateMessage";
 import { GalleryPickerModal } from "@/components/GalleryPickerModal";
@@ -63,6 +64,8 @@ interface Contact {
   lastMessageStatus?: string;
   tags?: string[];
   assigned_to?: string | null;
+  show_details?: boolean | null;
+  can_chat?: boolean | null;
 }
 
 interface Message {
@@ -450,6 +453,8 @@ const mapContactsForSidebar = (items: any[], idSeed: string): Contact[] => {
       lastInboundAt: item?.lastInboundAt || item?.last_inbound_at || null,
       direction: item?.direction || item?.lastMessageDirection,
       lastMessageStatus: item?.lastMessageStatus || item?.last_message_status || item?.status,
+      show_details: item?.show_details ?? null,
+      can_chat: item?.can_chat ?? null,
     };
     console.log("DEBUG mapContactsForSidebar:", { name: result.name, idSeed, originalId: item?.id, dbId: result.dbId });
     return result;
@@ -551,9 +556,7 @@ export default function InboxPage() {
   const [headerUserSearchQuery, setHeaderUserSearchQuery] = useState('');
   const [pendingAssignUserId, setPendingAssignUserId] = useState<string | null | undefined>(undefined);
   const [pendingShowDetails, setPendingShowDetails] = useState<boolean>(true);
-  const [pendingCanChat, setPendingCanChat] = useState<boolean>(true);
-  const [contactPermissions, setContactPermissions] = useState<{ show_details: boolean; can_chat: boolean } | null>(null);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(true);
+  const [pendingCanChat, setPendingCanChat] = useState<boolean>(true); const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showInboxMenu, setShowInboxMenu] = useState(false);
@@ -589,6 +592,8 @@ export default function InboxPage() {
   const [showSidebar, setShowSidebar] = useState(false);
 
   const router = useRouter();
+  const { user: authUser } = useAuthStore();
+  const isAdmin = authUser?.role === 'admin' || authUser?.role === 'superadmin';
 
   // ⭐ FAQ Flow state
   const [showFAQFlow, setShowFAQFlow] = useState(false);
@@ -608,6 +613,14 @@ export default function InboxPage() {
   // ⭐ Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const CONTACTS_PER_PAGE = 10;
+
+  // Derived permissions from contact data — instant, no extra fetch needed
+  const contactPermissions = selectedContact
+    ? {
+      show_details: selectedContact.show_details !== false, // null/undefined = show (default true)
+      can_chat: selectedContact.can_chat !== false,          // null/undefined = can chat (default true)
+    }
+    : null;
 
   const { register, watch, reset } = useForm<MessageFormInputs>({
     defaultValues: { message: "" },
@@ -694,27 +707,7 @@ export default function InboxPage() {
     },
   });
 
-  const fetchContactPermissions = async (contactId: string) => {
-    try {
-      const response = await api.get(`/admin/contacts/${contactId}/assigned`);
-      const data = response.data;
-      if (Array.isArray(data) && data.length > 0) {
-        const perm = data[0];
-        setContactPermissions({
-          show_details: perm.show_details ?? true,
-          can_chat: perm.can_chat ?? true,
-        });
-      } else {
-        setContactPermissions({ show_details: true, can_chat: true });
-      }
-    } catch (err) {
-      console.error('Failed to fetch contact permissions:', err);
-      setContactPermissions({ show_details: true, can_chat: true });
-    }
-  };
-
   const handleContactSelect = (contact: Contact) => {
-    console.log("DEBUG: handleContactSelect clicked contact:", { id: contact.id, dbId: contact.dbId, name: contact.name });
     setSelectedContact({ ...contact, unreadCount: 0 });
     setIsHeaderUserDropdownOpen(false);
     setHeaderUserSearchQuery('');
@@ -730,10 +723,6 @@ export default function InboxPage() {
         c.id === contact.id ? { ...c, unreadCount: 0 } : c
       );
     });
-
-    // Fetch permissions for this contact
-    const targetContactId = contact.dbId || String(contact.id);
-    fetchContactPermissions(targetContactId);
   };
 
   // Fetch users list once on mount
@@ -761,6 +750,50 @@ export default function InboxPage() {
     }
   };
 
+  const handleRemoveAssignment = async () => {
+    if (!selectedContact) return;
+    const assignedTo = selectedContact.assigned_to;
+    if (!assignedTo) return; // nothing to remove
+    const targetContactId = selectedContact.dbId || String(selectedContact.id);
+    const toastId = toast.loading('Removing assignment...');
+    try {
+      await api.delete(`/admin/contacts/${targetContactId}/removeAssignment?assigned_to=${assignedTo}`);
+
+      // Update selectedContact
+      setSelectedContact((prev) => prev ? {
+        ...prev,
+        assigned_to: null,
+        show_details: null,
+        can_chat: null,
+      } : null);
+
+      // Update contacts list cache
+      queryClient.setQueryData(["contacts", selectedPhone], (oldData: any) => {
+        if (!Array.isArray(oldData)) return oldData;
+        return oldData.map((c: any) =>
+          String(c.id) === String(selectedContact.id)
+            ? { ...c, assigned_to: null, show_details: null, can_chat: null }
+            : c
+        );
+      });
+
+      toast.update(toastId, {
+        render: '✅ Assignment removed',
+        type: 'success',
+        isLoading: false,
+        autoClose: 3000,
+      });
+    } catch (err: any) {
+      console.error('Failed to remove assignment:', err);
+      toast.update(toastId, {
+        render: err.message || 'Failed to remove assignment',
+        type: 'error',
+        isLoading: false,
+        autoClose: 3000,
+      });
+    }
+  };
+
   const handleHeaderAssignContact = async (userId: string, showDetails: boolean, canChat: boolean) => {
     if (!selectedContact) return;
     const targetContactId = selectedContact.dbId || String(selectedContact.id);
@@ -773,14 +806,26 @@ export default function InboxPage() {
       });
       await api.post(`/admin/contacts/${targetContactId}/assigned?${params.toString()}`);
 
-      // Update local state
-      setSelectedContact((prev) => prev ? { ...prev, assigned_to: userId } : null);
+      // Update selectedContact with new permissions immediately
+      setSelectedContact((prev) => prev ? {
+        ...prev,
+        assigned_to: userId || null,
+        show_details: userId ? showDetails : null,
+        can_chat: userId ? canChat : null,
+      } : null);
 
-      // Update contacts list query cache
+      // Update contacts list query cache with permissions
       queryClient.setQueryData(["contacts", selectedPhone], (oldData: any) => {
         if (!Array.isArray(oldData)) return oldData;
         return oldData.map((c: any) =>
-          String(c.id) === String(selectedContact.id) ? { ...c, assigned_to: userId } : c
+          String(c.id) === String(selectedContact.id)
+            ? {
+              ...c,
+              assigned_to: userId || null,
+              show_details: userId ? showDetails : null,
+              can_chat: userId ? canChat : null,
+            }
+            : c
         );
       });
 
@@ -789,20 +834,15 @@ export default function InboxPage() {
         : null;
 
       toast.update(toastId, {
-        render: assignedUser
-          ? `✅ Assigned to ${assignedUser}`
-          : '✅ Assignment removed',
+        render: assignedUser ? `✅ Assigned to ${assignedUser}` : '✅ Assignment removed',
         type: 'success',
         isLoading: false,
         autoClose: 3000,
       });
-
-      // Refresh permissions
-      fetchContactPermissions(targetContactId);
     } catch (err: any) {
-      console.error('Failed to assign contact:', err);
+      console.error('Failed to update assignment:', err);
       toast.update(toastId, {
-        render: err.message || 'Failed to assign contact',
+        render: err.message || 'Failed to update assignment',
         type: 'error',
         isLoading: false,
         autoClose: 3000,
@@ -2406,224 +2446,231 @@ lg:relative lg:flex
 
               {/* Action icons */}
               <div className="flex items-center gap-4 text-white">
-                {/* Assign User Icon & Dropdown */}
-                <div className="relative group">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = !isHeaderUserDropdownOpen;
-                      setIsHeaderUserDropdownOpen(next);
-                      if (next) {
-                        // Sync pending selection to current assignment when opening
-                        setPendingAssignUserId(selectedContact?.assigned_to ?? '');
-                        setPendingShowDetails(true);
-                        setPendingCanChat(true);
-                        setHeaderUserSearchQuery('');
-                      }
-                    }}
-                    className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200 flex items-center justify-center`}
-                  >
-                    <UserPlus size={18} />
-                    {/* Visual indicator dot if assigned to someone */}
-                    {selectedContact?.assigned_to && (
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white"></span>
-                    )}
-                  </button>
-                  <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5 z-[70]">
-                    Assign Contact
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
-                  </span>
-
-                  {/* Click-away backdrop overlay */}
-                  {isHeaderUserDropdownOpen && (
-                    <div
-                      className="fixed inset-0 z-50 cursor-default"
+                {/* Assign User Icon & Dropdown — admin only */}
+                {isAdmin && (
+                  <div className="relative group">
+                    <button
+                      type="button"
                       onClick={() => {
-                        setIsHeaderUserDropdownOpen(false);
-                        setHeaderUserSearchQuery('');
+                        const next = !isHeaderUserDropdownOpen;
+                        setIsHeaderUserDropdownOpen(next);
+                        if (next) {
+                          // Sync pending selection to current assignment when opening
+                          setPendingAssignUserId(selectedContact?.assigned_to ?? '');
+                          setPendingShowDetails(true);
+                          setPendingCanChat(true);
+                          setHeaderUserSearchQuery('');
+                        }
                       }}
-                    />
-                  )}
+                      className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200 flex items-center justify-center`}
+                    >
+                      <UserPlus size={18} />
+                      {/* Visual indicator dot if assigned to someone */}
+                      {selectedContact?.assigned_to && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white"></span>
+                      )}
+                    </button>
+                    <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-blue-100 text-blue-800 text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 whitespace-nowrap shadow-lg border border-blue-300 font-semibold transform group-hover:translate-y-0.5 z-[70]">
+                      Assign Contact
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-blue-300"></div>
+                    </span>
 
-                  {/* Popover Menu content */}
-                  {isHeaderUserDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-[320px] rounded-xl shadow-2xl bg-white text-gray-900 border border-gray-200 z-[80] flex flex-col overflow-hidden max-h-[480px]">
-                      {/* Header */}
-                      <div className="px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Assign Contact</p>
-                        <p className="text-sm font-medium text-gray-800 mt-1">
-                          Currently:{' '}
-                          <span className={`font-semibold ${selectedContact?.assigned_to ? 'text-blue-600' : 'text-gray-400'}`}>
-                            {!selectedContact?.assigned_to
-                              ? 'Unassigned'
-                              : users.find(u => String(u.id) === String(selectedContact.assigned_to?.trim()))?.name || 'Unknown'}
-                          </span>
-                        </p>
-                      </div>
+                    {/* Click-away backdrop overlay */}
+                    {isHeaderUserDropdownOpen && (
+                      <div
+                        className="fixed inset-0 z-50 cursor-default"
+                        onClick={() => {
+                          setIsHeaderUserDropdownOpen(false);
+                          setHeaderUserSearchQuery('');
+                        }}
+                      />
+                    )}
 
-                      {/* Search Input */}
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                          <input
-                            type="text"
-                            placeholder="Search users..."
-                            value={headerUserSearchQuery}
-                            onChange={(e) => setHeaderUserSearchQuery(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            autoFocus
-                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-gray-50"
-                          />
+                    {/* Popover Menu content */}
+                    {isHeaderUserDropdownOpen && (
+                      <div className="absolute right-0 mt-2 w-[420px] rounded-xl shadow-2xl bg-white text-gray-900 border border-gray-200 z-[80] flex flex-col overflow-hidden max-h-[560px]">
+                        {/* Header */}
+                        <div className="px-5 py-3.5 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Assign Contact</p>
+                          <p className="text-sm font-medium text-gray-800 mt-1">
+                            Currently:{' '}
+                            <span className={`font-semibold ${selectedContact?.assigned_to ? 'text-blue-600' : 'text-gray-400'}`}>
+                              {!selectedContact?.assigned_to
+                                ? 'Unassigned'
+                                : users.find(u => String(u.id) === String(selectedContact.assigned_to?.trim()))?.name || 'Unknown'}
+                            </span>
+                          </p>
                         </div>
-                      </div>
 
-                      {/* Scrollable User List */}
-                      <div className="overflow-y-auto max-h-[320px] py-2">
-                        {/* Remove Assignment option */}
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPendingAssignUserId('');
-                          }}
-                          className={`flex items-center gap-3 mx-3 px-3 py-2.5 mb-1 rounded-lg cursor-pointer select-none transition-all ${pendingAssignUserId === ''
-                            ? 'bg-red-50 border border-red-200'
-                            : 'hover:bg-gray-50 border border-transparent'
-                            }`}
-                        >
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${pendingAssignUserId === ''
-                            ? 'border-red-500 bg-red-500'
-                            : 'border-gray-300 bg-white'
-                            }`}>
-                            {pendingAssignUserId === '' && (
-                              <div className="w-2 h-2 rounded-full bg-white" />
-                            )}
+                        {/* Search Input */}
+                        <div className="px-4 py-3 border-b border-gray-100">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                            <input
+                              type="text"
+                              placeholder="Search users..."
+                              value={headerUserSearchQuery}
+                              onChange={(e) => setHeaderUserSearchQuery(e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              autoFocus
+                              className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-gray-50"
+                            />
                           </div>
-                          <span className="text-sm font-semibold text-red-600">Remove Assignment</span>
                         </div>
 
-                        <div className="mx-4 my-2 border-t border-gray-100" />
-
-                        {/* Users list */}
-                        {users
-                          .filter(user =>
-                            user.name?.toLowerCase().includes(headerUserSearchQuery.toLowerCase()) ||
-                            user.email?.toLowerCase().includes(headerUserSearchQuery.toLowerCase())
-                          )
-                          .map(user => {
-                            const isSelected = pendingAssignUserId === String(user.id);
-                            const initials = (user.name || 'U').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-
-                            return (
-                              <div key={user.id} className="px-3 mb-1">
-                                {/* User row */}
-                                <div
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setPendingAssignUserId(String(user.id));
-                                  }}
-                                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer select-none transition-all ${isSelected
-                                    ? 'bg-blue-50 border border-blue-200'
-                                    : 'hover:bg-gray-50 border border-transparent'
-                                    }`}
-                                >
-                                  {/* Radio indicator */}
-                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'}`}>
-                                    {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
-                                  </div>
-                                  {/* Avatar */}
-                                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 shadow-sm">
-                                    {initials}
-                                  </div>
-                                  {/* Name + email */}
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{user.name}</p>
-                                    <p className="text-xs text-gray-500 truncate mt-0.5">{user.email || user.phone || '—'}</p>
-                                  </div>
-                                </div>
-
-                                {/* Options panel — only shown when this user is selected */}
-                                {isSelected && (
-                                  <div className="mx-3 mb-3 mt-2 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 shadow-sm" onClick={(e) => e.stopPropagation()}>
-                                    <div className="flex items-center gap-2 mb-3">
-                                      <div className="w-1 h-5 bg-blue-500 rounded-full"></div>
-                                      <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Permissions</p>
-                                    </div>
-
-                                    {/* Show Details checkbox */}
-                                    <label className="flex items-center gap-3 mb-3 p-3 bg-white rounded-lg cursor-pointer hover:bg-blue-50 transition-all border border-gray-100 hover:border-blue-200 hover:shadow-sm">
-                                      <input
-                                        type="checkbox"
-                                        checked={pendingShowDetails}
-                                        onChange={(e) => setPendingShowDetails(e.target.checked)}
-                                        className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer flex-shrink-0"
-                                      />
-                                      <div className="flex-1 min-w-0">
-                                        <span className="text-sm text-gray-800 font-semibold block">Show Details</span>
-                                        <span className="text-xs text-gray-500 block mt-0.5">View contact name & phone</span>
-                                      </div>
-                                    </label>
-
-                                    {/* Can Chat checkbox */}
-                                    <label className="flex items-center gap-3 p-3 bg-white rounded-lg cursor-pointer hover:bg-green-50 transition-all border border-gray-100 hover:border-green-200 hover:shadow-sm">
-                                      <input
-                                        type="checkbox"
-                                        checked={pendingCanChat}
-                                        onChange={(e) => setPendingCanChat(e.target.checked)}
-                                        className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-2 focus:ring-green-500 cursor-pointer flex-shrink-0"
-                                      />
-                                      <div className="flex-1 min-w-0">
-                                        <span className="text-sm text-gray-800 font-semibold block">Can Chat</span>
-                                        <span className="text-xs text-gray-500 block mt-0.5">Send messages to this contact</span>
-                                      </div>
-                                    </label>
-                                  </div>
-                                )}
+                        {/* Scrollable User List */}
+                        <div className="overflow-y-auto max-h-[320px] py-2">
+                          {/* Remove Assignment option — only show if contact is currently assigned */}
+                          {selectedContact?.assigned_to && (
+                            <div
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                setIsHeaderUserDropdownOpen(false);
+                                setHeaderUserSearchQuery('');
+                                await handleRemoveAssignment();
+                              }}
+                              className="flex items-center gap-3 mx-3 px-3 py-2.5 mb-1 rounded-lg cursor-pointer select-none transition-all hover:bg-red-50 border border-transparent hover:border-red-200"
+                            >
+                              <div className="w-5 h-5 rounded-full border-2 border-red-400 flex items-center justify-center flex-shrink-0">
+                                <div className="w-2 h-0.5 bg-red-400 rounded-full" />
                               </div>
-                            );
-                          })}
-
-                        {users.filter(u =>
-                          u.name?.toLowerCase().includes(headerUserSearchQuery.toLowerCase()) ||
-                          u.email?.toLowerCase().includes(headerUserSearchQuery.toLowerCase())
-                        ).length === 0 && (
-                            <div className="px-4 py-6 text-sm text-gray-400 text-center">
-                              <p className="font-medium">No users found</p>
-                              <p className="text-xs mt-1">Try a different search term</p>
+                              <div>
+                                <span className="text-sm font-semibold text-red-600">Remove Assignment</span>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  Currently: {users.find(u => String(u.id) === String(selectedContact.assigned_to?.trim()))?.name || 'Assigned'}
+                                </p>
+                              </div>
                             </div>
                           )}
-                      </div>
 
-                      {/* Action Buttons */}
-                      <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex gap-3">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsHeaderUserDropdownOpen(false);
-                            setHeaderUserSearchQuery('');
-                          }}
-                          className="flex-1 py-2.5 text-sm text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors font-semibold shadow-sm"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          disabled={pendingAssignUserId === undefined}
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            if (pendingAssignUserId === undefined) return;
-                            setIsHeaderUserDropdownOpen(false);
-                            setHeaderUserSearchQuery('');
-                            await handleHeaderAssignContact(pendingAssignUserId ?? '', pendingShowDetails, pendingCanChat);
-                          }}
-                          className="flex-1 py-2.5 text-sm text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-semibold shadow-sm"
-                        >
-                          Assign
-                        </button>
+                          {selectedContact?.assigned_to && <div className="mx-4 my-2 border-t border-gray-100" />}
+
+                          {/* Users list */}
+                          {users
+                            .filter(user =>
+                              user.name?.toLowerCase().includes(headerUserSearchQuery.toLowerCase()) ||
+                              user.email?.toLowerCase().includes(headerUserSearchQuery.toLowerCase())
+                            )
+                            .map(user => {
+                              const isSelected = pendingAssignUserId === String(user.id);
+                              const initials = (user.name || 'U').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+
+                              return (
+                                <div key={user.id} className="px-3 mb-1">
+                                  {/* User row */}
+                                  <div
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPendingAssignUserId(String(user.id));
+                                    }}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer select-none transition-all ${isSelected
+                                      ? 'bg-blue-50 border border-blue-200'
+                                      : 'hover:bg-gray-50 border border-transparent'
+                                      }`}
+                                  >
+                                    {/* Radio indicator */}
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'}`}>
+                                      {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                    </div>
+                                    {/* Avatar */}
+                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 shadow-sm">
+                                      {initials}
+                                    </div>
+                                    {/* Name + email */}
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-semibold text-gray-900 truncate leading-tight">{user.name}</p>
+                                      <p className="text-xs text-gray-500 truncate mt-0.5">{user.email || user.phone || '—'}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Options panel — only shown when this user is selected */}
+                                  {isSelected && (
+                                    <div className="mx-3 mb-3 mt-2 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 shadow-sm" onClick={(e) => e.stopPropagation()}>
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <div className="w-1 h-5 bg-blue-500 rounded-full"></div>
+                                        <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Permissions</p>
+                                      </div>
+
+                                      {/* Show Details */}
+                                      <div className="mb-3 p-3 bg-white rounded-lg border border-gray-100">
+                                        <p className="text-sm font-semibold text-gray-800 mb-1">Show Details</p>
+                                        <p className="text-xs text-gray-500 mb-2.5">Can view contact name & phone</p>
+                                        <div className="flex gap-2">
+                                          <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${pendingShowDetails ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-blue-300'}`}>
+                                            <input type="radio" name={`show_details_${user.id}`} className="sr-only" checked={pendingShowDetails} onChange={() => setPendingShowDetails(true)} />
+                                            Yes
+                                          </label>
+                                          <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${!pendingShowDetails ? 'bg-red-500 border-red-500 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-red-300'}`}>
+                                            <input type="radio" name={`show_details_${user.id}`} className="sr-only" checked={!pendingShowDetails} onChange={() => setPendingShowDetails(false)} />
+                                            No
+                                          </label>
+                                        </div>
+                                      </div>
+
+                                      {/* Can Chat */}
+                                      <div className="p-3 bg-white rounded-lg border border-gray-100">
+                                        <p className="text-sm font-semibold text-gray-800 mb-1">Can Chat</p>
+                                        <p className="text-xs text-gray-500 mb-2.5">Can send messages to this contact</p>
+                                        <div className="flex gap-2">
+                                          <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${pendingCanChat ? 'bg-green-600 border-green-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-green-300'}`}>
+                                            <input type="radio" name={`can_chat_${user.id}`} className="sr-only" checked={pendingCanChat} onChange={() => setPendingCanChat(true)} />
+                                            Yes
+                                          </label>
+                                          <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${!pendingCanChat ? 'bg-red-500 border-red-500 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-red-300'}`}>
+                                            <input type="radio" name={`can_chat_${user.id}`} className="sr-only" checked={!pendingCanChat} onChange={() => setPendingCanChat(false)} />
+                                            No
+                                          </label>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                          {users.filter(u =>
+                            u.name?.toLowerCase().includes(headerUserSearchQuery.toLowerCase()) ||
+                            u.email?.toLowerCase().includes(headerUserSearchQuery.toLowerCase())
+                          ).length === 0 && (
+                              <div className="px-4 py-6 text-sm text-gray-400 text-center">
+                                <p className="font-medium">No users found</p>
+                                <p className="text-xs mt-1">Try a different search term</p>
+                              </div>
+                            )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex gap-3">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsHeaderUserDropdownOpen(false);
+                              setHeaderUserSearchQuery('');
+                            }}
+                            className="flex-1 py-2.5 text-sm text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors font-semibold shadow-sm"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={pendingAssignUserId === undefined}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (pendingAssignUserId === undefined) return;
+                              setIsHeaderUserDropdownOpen(false);
+                              setHeaderUserSearchQuery('');
+                              await handleHeaderAssignContact(pendingAssignUserId ?? '', pendingShowDetails, pendingCanChat);
+                            }}
+                            className="flex-1 py-2.5 text-sm text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-semibold shadow-sm"
+                          >
+                            Assign
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )} {/* end isAdmin */}
 
                 <div className="relative group">
                   <MoreVertical
@@ -3145,123 +3192,128 @@ lg:relative lg:flex
               </div>
             </div>
           </div>
-        )}
-      </div>
+        )
+        }
+      </div >
 
       {/* FAQ Flow Component */}
-      {showFAQFlow && selectedContact && (
-        <FAQFlow
-          contactId={selectedContact.id}
-          contactName={selectedContact.name}
-          onClose={() => setShowFAQFlow(false)}
-          botId={selectedBotForFAQ}
-        />
-      )}
+      {
+        showFAQFlow && selectedContact && (
+          <FAQFlow
+            contactId={selectedContact.id}
+            contactName={selectedContact.name}
+            onClose={() => setShowFAQFlow(false)}
+            botId={selectedBotForFAQ}
+          />
+        )
+      }
 
       {/* Template Selector Modal */}
-      {showTemplateSelector && selectedContact && (
-        <TemplateSelectorModal
-          isOpen={showTemplateSelector}
-          onClose={() => setShowTemplateSelector(false)}
-          contactPhone={selectedContact.phone || ""}
-          contactName={selectedContact.name}
-          phoneNumberId={outboundPhoneNumberId}
-          onSend={async (templateId: string | number, variables: Record<string, string>, templateData?: any): Promise<void> => {
-            try {
-              const token = localStorage.getItem("console_access_token");
+      {
+        showTemplateSelector && selectedContact && (
+          <TemplateSelectorModal
+            isOpen={showTemplateSelector}
+            onClose={() => setShowTemplateSelector(false)}
+            contactPhone={selectedContact.phone || ""}
+            contactName={selectedContact.name}
+            phoneNumberId={outboundPhoneNumberId}
+            onSend={async (templateId: string | number, variables: Record<string, string>, templateData?: any): Promise<void> => {
+              try {
+                const token = localStorage.getItem("console_access_token");
 
-              if (!token) {
-                toast.error("Console token required");
-                return;
-              }
+                if (!token) {
+                  toast.error("Console token required");
+                  return;
+                }
 
-              if (!selectedContact?.phone) {
-                toast.error("Contact phone is required");
-                return;
-              }
+                if (!selectedContact?.phone) {
+                  toast.error("Contact phone is required");
+                  return;
+                }
 
-              const resolvedPhoneNumberId = String(
-                outboundPhoneNumberId || ""
-              ).trim();
-              if (!resolvedPhoneNumberId) {
-                toast.error("Phone number ID is required");
-                return;
-              }
+                const resolvedPhoneNumberId = String(
+                  outboundPhoneNumberId || ""
+                ).trim();
+                if (!resolvedPhoneNumberId) {
+                  toast.error("Phone number ID is required");
+                  return;
+                }
 
-              const templateComponents = Array.isArray(templateData?.components)
-                ? templateData.components
-                : [];
-              const templateVars = getTemplateVariables(templateComponents);
-              const formattedParams = formatTemplateParameters(
-                templateVars,
-                variables || {},
-                templateComponents,
-              );
+                const templateComponents = Array.isArray(templateData?.components)
+                  ? templateData.components
+                  : [];
+                const templateVars = getTemplateVariables(templateComponents);
+                const formattedParams = formatTemplateParameters(
+                  templateVars,
+                  variables || {},
+                  templateComponents,
+                );
 
-              const components: any[] = [];
-              if (formattedParams.header.length > 0) {
-                components.push({
-                  type: "header",
-                  parameters: formattedParams.header,
+                const components: any[] = [];
+                if (formattedParams.header.length > 0) {
+                  components.push({
+                    type: "header",
+                    parameters: formattedParams.header,
+                  });
+                }
+                if (formattedParams.body.length > 0) {
+                  components.push({
+                    type: "body",
+                    parameters: formattedParams.body,
+                  });
+                }
+                if (formattedParams.buttons.length > 0) {
+                  components.push(...formattedParams.buttons);
+                }
+
+                // Build final payload
+                const payload = {
+                  phone_number_id: resolvedPhoneNumberId,
+                  to: selectedContact.phone.replace(/\D/g, ""),
+                  type: "template",
+                  template: {
+                    name: templateData?.name,
+                    language: templateData?.language || "en",
+                    components: components,
+                  },
+                };
+
+                console.log("📤 Sending template payload:", JSON.stringify(payload, null, 2));
+
+                // Call EXTERNAL API via api
+                const response = await api.post("/admin/messages/send", payload);
+
+                const data = response.data;
+
+                console.log("📥 API Response:", {
+                  status: response.status,
+                  ok: response.status.toString().startsWith("2"),
+                  data,
                 });
-              }
-              if (formattedParams.body.length > 0) {
-                components.push({
-                  type: "body",
-                  parameters: formattedParams.body,
+
+                if (!response.status.toString().startsWith("2")) {
+                  const errorMsg =
+                    data?.error ||
+                    data?.message ||
+                    `Failed to send template (${response.status})`;
+                  console.error("❌ Template error:", errorMsg);
+                  toast.error(errorMsg);
+                  return;
+                }
+
+                queryClient.invalidateQueries({
+                  queryKey: ["messages", selectedContact.id],
                 });
+                queryClient.invalidateQueries({ queryKey: ["contacts"] });
+                toast.success("Template sent successfully!");
+              } catch (error: any) {
+                console.error("Error sending template:", error);
+                toast.error(error?.message || "Failed to send template");
               }
-              if (formattedParams.buttons.length > 0) {
-                components.push(...formattedParams.buttons);
-              }
-
-              // Build final payload
-              const payload = {
-                phone_number_id: resolvedPhoneNumberId,
-                to: selectedContact.phone.replace(/\D/g, ""),
-                type: "template",
-                template: {
-                  name: templateData?.name,
-                  language: templateData?.language || "en",
-                  components: components,
-                },
-              };
-
-              console.log("📤 Sending template payload:", JSON.stringify(payload, null, 2));
-
-              // Call EXTERNAL API via api
-              const response = await api.post("/admin/messages/send", payload);
-
-              const data = response.data;
-
-              console.log("📥 API Response:", {
-                status: response.status,
-                ok: response.status.toString().startsWith("2"),
-                data,
-              });
-
-              if (!response.status.toString().startsWith("2")) {
-                const errorMsg =
-                  data?.error ||
-                  data?.message ||
-                  `Failed to send template (${response.status})`;
-                console.error("❌ Template error:", errorMsg);
-                toast.error(errorMsg);
-                return;
-              }
-
-              queryClient.invalidateQueries({
-                queryKey: ["messages", selectedContact.id],
-              });
-              queryClient.invalidateQueries({ queryKey: ["contacts"] });
-              toast.success("Template sent successfully!");
-            } catch (error: any) {
-              console.error("Error sending template:", error);
-              toast.error(error?.message || "Failed to send template");
-            }
-          }}
-        />
-      )}
+            }}
+          />
+        )
+      }
       {/* Gallery Picker Modal */}
       <GalleryPickerModal
         isOpen={showGalleryPicker}
@@ -3271,6 +3323,6 @@ lg:relative lg:flex
           setShowGalleryPicker(false);
         }}
       />
-    </div>
+    </div >
   );
 }
