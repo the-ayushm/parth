@@ -166,7 +166,7 @@ return () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/admin/companies/user?role=user&limit=100');
+      const response = await api.get('/admin/companies/user?limit=100');
       let userList = [];
 
       if (response) {
@@ -677,8 +677,7 @@ return () => {
                         .map(user => {
                           const isChecked = selectedAssignUserId === user.id;
 
-                          
-return (
+                          return (
                             <label
                               key={user.id}
                               className="flex items-center px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer select-none"
@@ -693,7 +692,14 @@ return (
                                 }}
                               />
                               <div className="truncate">
-                                <p className="font-medium text-gray-900 leading-none">{user.name}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-gray-900 leading-none">{user.name}</p>
+                                  {user.role && user.role.toLowerCase() !== 'user' && (
+                                    <span className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded uppercase tracking-wider font-sans">
+                                      {user.role}
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-xs text-gray-400 mt-1">{user.email || user.phone || 'no contact info'}</p>
                               </div>
                             </label>
