@@ -8,7 +8,8 @@ import React, { useEffect, useState, useRef } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { Search ,
+import {
+  Search,
   MessageSquare,
   Send,
   Check,
@@ -109,8 +110,8 @@ interface Message {
 const getMessageStableKey = (msg: Partial<Message> & Record<string, any>) => {
   const key = msg.whatsappMessageId || msg.id;
 
-  
-return key != null ? String(key) : null;
+
+  return key != null ? String(key) : null;
 };
 
 /** Parse legacy messages stored as raw JSON (chatbot button payload bug) */
@@ -129,8 +130,8 @@ function getButtonMessageContent(msg: Message): { text: string; buttons: string[
     } catch { /* ignore */ }
   }
 
-  
-return null;
+
+  return null;
 }
 
 interface ContactItemProps {
@@ -152,8 +153,8 @@ const CONTACTS_PAGE_LIMIT = 20;
 
 const buildInitials = (name?: string) => {
   if (!name) return "NA";
-  
-return name
+
+  return name
     .split(" ")
     .slice(0, 2)
     .map((n) => n[0])
@@ -382,8 +383,8 @@ const isSamePhoneValue = (left: unknown, right: unknown): boolean => {
   const rightDigits = normalizePhone(right);
 
   if (!leftDigits || !rightDigits) return false;
-  
-return (
+
+  return (
     leftDigits === rightDigits ||
     leftDigits.slice(-10) === rightDigits.slice(-10)
   );
@@ -394,8 +395,8 @@ const normalizeLeadNumber = (value: unknown): string => {
   const digits = normalizePhone(raw);
 
   if (!digits) return "";
-  
-return raw.startsWith("+") ? `+${digits}` : `+${digits}`;
+
+  return raw.startsWith("+") ? `+${digits}` : `+${digits}`;
 };
 
 const getLast10Digits = (value: unknown): string => normalizePhone(value).slice(-10);
@@ -408,8 +409,8 @@ const createStableContactId = (seed: string): number => {
     hash |= 0;
   }
 
-  
-return Math.abs(hash) + 100000;
+
+  return Math.abs(hash) + 100000;
 };
 
 const mapContactsForSidebar = (items: any[], idSeed: string): Contact[] => {
@@ -500,11 +501,9 @@ const mapContactsForSidebar = (items: any[], idSeed: string): Contact[] => {
       direction: item?.direction || item?.lastMessageDirection,
       lastMessageStatus: item?.lastMessageStatus || item?.last_message_status || item?.status,
       assigned_to: item?.assigned_to || item?.assignedTo || null,
-      show_details: item?.show_details === undefined ? null : (item.show_details === 'false' || item.show_details === false ? false : (item.show_details === 'true' || item.show_details === true ? true : null)),
-      can_chat: item?.can_chat === undefined ? null : (item.can_chat === 'false' || item.can_chat === false ? false : (item.can_chat === 'true' || item.can_chat === true ? true : null)),
+      show_details: item?.show_details == null ? null : Boolean(item.show_details),
+      can_chat: item?.can_chat == null ? null : Boolean(item.can_chat),
     };
-
-    console.log("DEBUG mapContactsForSidebar:", { name: result.name, idSeed, originalId: item?.id, dbId: result.dbId });
 
     return result;
   });
@@ -550,8 +549,8 @@ const belongsToSelectedContact = (message: any, selectedPhone?: string | null): 
   return candidates.some((candidate) => {
     const candidateLast10 = candidate.slice(-10);
 
-    
-return (
+
+    return (
       candidate === target ||
       candidateLast10 === targetLast10 ||
       candidate.endsWith(targetLast10) ||
@@ -594,8 +593,8 @@ const getDateGroupLabel = (date: Date): string => {
 
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
-  
-return msgDate.toLocaleDateString([], {
+
+  return msgDate.toLocaleDateString([], {
     day: "numeric",
     month: "short",
     year: msgDate.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
@@ -615,6 +614,12 @@ export default function InboxPage() {
   const [pendingAssignUserId, setPendingAssignUserId] = useState<string | null | undefined>(undefined);
   const [pendingShowDetails, setPendingShowDetails] = useState<boolean>(true);
   const [pendingCanChat, setPendingCanChat] = useState<boolean>(true);
+  const [assignmentCache, setAssignmentCache] = useState<Map<string, string[]>>(new Map());
+  // Dedicated state for the fetched assignments in the dropdown (supports multiple)
+  const [dropdownAssignedTo, setDropdownAssignedTo] = useState<string[]>([]);
+  // Track all assignment objects (with show_details, can_chat) for each assigned user
+  const [dropdownAssignments, setDropdownAssignments] = useState<any[]>([]);
+  const [dropdownLoading, setDropdownLoading] = useState(false);
   const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
 
   // 1. Load from storage on mount to prevent hydration mismatch
@@ -765,8 +770,8 @@ export default function InboxPage() {
   // Derived permissions from contact data — instant, no extra fetch needed
   const contactPermissions = selectedContact
     ? {
-      show_details: selectedContact.show_details !== false, // null/undefined = show (default true)
-      can_chat: selectedContact.can_chat !== false,          // null/undefined = can chat (default true)
+      show_details: isAdmin ? true : (selectedContact.show_details !== false), // null/undefined = show (default true)
+      can_chat: isAdmin ? true : (selectedContact.can_chat !== false),          // null/undefined = can chat (default true)
     }
     : null;
 
@@ -829,8 +834,8 @@ export default function InboxPage() {
             };
           }
 
-          
-return c;
+
+          return c;
         });
       });
 
@@ -849,8 +854,8 @@ return c;
 
             console.log("📊 Inbox: Updated messages cache, found match:",
               oldMessages.some(m => m.whatsappMessageId === wamid));
-            
-return updated;
+
+            return updated;
           }
         );
       }
@@ -867,7 +872,7 @@ return updated;
     },
   });
 
-  const handleContactSelect = (contact: Contact) => {
+  const handleContactSelect = async (contact: Contact) => {
     setSelectedContact({ ...contact, unreadCount: 0 });
     setIsHeaderUserDropdownOpen(false);
     setHeaderUserSearchQuery('');
@@ -878,13 +883,44 @@ return updated;
       localStorage.setItem(`wa_unread_${phoneKey}`, "0");
     }
 
-    queryClient.setQueryData(["contacts", selectedPhone], (oldData: any) => {
+    queryClient.setQueryData(["contacts", selectedPhone, authUser?.id], (oldData: any) => {
       if (!Array.isArray(oldData)) return oldData;
-      
-return oldData.map((c: any) =>
+      return oldData.map((c: any) =>
         c.id === contact.id ? { ...c, unreadCount: 0 } : c
       );
     });
+
+    // Fetch assignment info for this contact (to get assigned_to for the assign dropdown)
+    if (isAdmin && contact.dbId) {
+      try {
+        const res = await api.get(`/admin/contacts/${contact.dbId}/assigned`);
+        const raw = res?.data ?? res;
+        const list: any[] = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.data)
+            ? raw.data
+            : raw?.data
+              ? [raw.data]
+              : [];
+        if (list.length > 0) {
+          const assignedIds = list.map((a: any) => a.assigned_to ?? a.assignedTo ?? '').filter(Boolean);
+          setAssignmentCache(prev => new Map(prev).set(contact.dbId!, assignedIds));
+          // Set the first assignment's details on selectedContact for backward compat
+          const a = list[0];
+          const assignedTo = a.assigned_to ?? a.assignedTo ?? null;
+          setSelectedContact(prev => prev ? {
+            ...prev,
+            assigned_to: assignedTo,
+            show_details: a.show_details != null ? Boolean(a.show_details) : prev.show_details,
+            can_chat: a.can_chat != null ? Boolean(a.can_chat) : prev.can_chat,
+          } : null);
+        } else {
+          setAssignmentCache(prev => new Map(prev).set(contact.dbId!, []));
+        }
+      } catch {
+        // no assignment exists for this contact
+      }
+    }
   };
 
   // Fetch users list once on mount
@@ -913,9 +949,10 @@ return oldData.map((c: any) =>
     }
   };
 
-  const handleRemoveAssignment = async () => {
+  const handleRemoveAssignment = async (assignedToId?: string) => {
     if (!selectedContact) return;
-    const assignedTo = selectedContact.assigned_to;
+    // Use provided assignedToId, or fall back to first dropdownAssignedTo entry
+    const assignedTo = assignedToId || (dropdownAssignedTo.length > 0 ? dropdownAssignedTo[0] : null) || selectedContact.assigned_to;
 
     if (!assignedTo) return; // nothing to remove
     const targetContactId = selectedContact.dbId || String(selectedContact.id);
@@ -924,21 +961,41 @@ return oldData.map((c: any) =>
     try {
       await api.delete(`/admin/contacts/${targetContactId}/removeAssignment?assigned_to=${assignedTo}`);
 
-      // Update selectedContact
+      // Update assignment cache — remove only the specific user
+      if (targetContactId) {
+        setAssignmentCache(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(targetContactId) || [];
+          newMap.set(targetContactId, existing.filter(id => id !== assignedTo));
+          return newMap;
+        });
+      }
+
+      // Update dropdown state — remove only the specific user
+      setDropdownAssignedTo(prev => prev.filter(id => id !== assignedTo));
+      setDropdownAssignments(prev => prev.filter((a: any) => (a.assigned_to ?? a.assignedTo) !== assignedTo));
+
+      // Update selectedContact — set to next remaining assignment or null
+      const remaining = dropdownAssignedTo.filter(id => id !== assignedTo);
       setSelectedContact((prev) => prev ? {
         ...prev,
-        assigned_to: null,
-        show_details: null,
-        can_chat: null,
+        assigned_to: remaining.length > 0 ? remaining[0] : null,
+        show_details: remaining.length > 0 ? prev.show_details : null,
+        can_chat: remaining.length > 0 ? prev.can_chat : null,
       } : null);
 
       // Update contacts list cache
-      queryClient.setQueryData(["contacts", selectedPhone], (oldData: any) => {
+      queryClient.setQueryData(["contacts", selectedPhone, authUser?.id], (oldData: any) => {
         if (!Array.isArray(oldData)) return oldData;
-        
-return oldData.map((c: any) =>
+
+        return oldData.map((c: any) =>
           String(c.id) === String(selectedContact.id)
-            ? { ...c, assigned_to: null, show_details: null, can_chat: null }
+            ? {
+              ...c,
+              assigned_to: remaining.length > 0 ? remaining[0] : null,
+              show_details: remaining.length > 0 ? c.show_details : null,
+              can_chat: remaining.length > 0 ? c.can_chat : null,
+            }
             : c
         );
       });
@@ -973,6 +1030,22 @@ return oldData.map((c: any) =>
       });
 
       await api.post(`/admin/contacts/${targetContactId}/assigned?${params.toString()}`);
+      await api.put(`/admin/contacts/${targetContactId}`, {
+        show_details: showDetails,
+        can_chat: canChat,
+      });
+
+      // Update assignment cache — add new user to existing array
+      if (targetContactId) {
+        setAssignmentCache(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(targetContactId) || [];
+          if (userId && !existing.includes(userId)) {
+            newMap.set(targetContactId, [...existing, userId]);
+          }
+          return newMap;
+        });
+      }
 
       // Update selectedContact with new permissions immediately
       setSelectedContact((prev) => prev ? {
@@ -983,10 +1056,10 @@ return oldData.map((c: any) =>
       } : null);
 
       // Update contacts list query cache with permissions
-      queryClient.setQueryData(["contacts", selectedPhone], (oldData: any) => {
+      queryClient.setQueryData(["contacts", selectedPhone, authUser?.id], (oldData: any) => {
         if (!Array.isArray(oldData)) return oldData;
-        
-return oldData.map((c: any) =>
+
+        return oldData.map((c: any) =>
           String(c.id) === String(selectedContact.id)
             ? {
               ...c,
@@ -1130,8 +1203,8 @@ return oldData.map((c: any) =>
           res = await api.get("/admin/contacts/tags");
         } catch (err2) {
           console.warn('Inbox: failed to fetch contact tags from both /admin/contacts/tags and /admin/contacts/tags', err2);
-          
-return [];
+
+          return [];
         }
       }
 
@@ -1162,7 +1235,7 @@ return [];
 
   // ✅ Fetch contacts from ngrok API
   const { data: contacts = [], isLoading: loadingContacts } = useQuery({
-    queryKey: ["contacts", selectedPhone],
+    queryKey: ["contacts", selectedPhone, authUser?.id],
     queryFn: async () => {
       const token = getConsoleToken();
 
@@ -1232,9 +1305,11 @@ return [];
 
       const mappedContacts = mapContactsForSidebar(allContactsRaw, "contacts");
 
+      const mappedContactsWithAssignments = mappedContacts;
+
       // Merge conversation metadata when available
       if (!selectedPhone) {
-        return mappedContacts;
+        return mappedContactsWithAssignments;
       }
 
       const query = new URLSearchParams({ phone_number_id: selectedPhone });
@@ -1263,7 +1338,7 @@ return [];
       );
 
       if (mappedFromConversations.length === 0) {
-        return mappedContacts;
+        return mappedContactsWithAssignments;
       }
 
       const conversationByPhone = new Map<string, Contact>();
@@ -1277,7 +1352,7 @@ return [];
 
       const activeContactPhone = selectedContact ? getLast10Digits(selectedContact.phone) : null;
 
-      return mappedContacts.map((item) => {
+      return mappedContactsWithAssignments.map((item) => {
         const phoneKey = getLast10Digits(item.phone);
         const convoMeta = phoneKey ? conversationByPhone.get(phoneKey) : undefined;
 
@@ -1354,13 +1429,13 @@ return [];
           lastMessageTime: convoMeta.lastMessageTime || item.lastMessageTime,
           unreadCount: finalUnread,
           lastInboundAt: convoMeta.lastInboundAt || item.lastInboundAt,
-          assigned_to: item.assigned_to || convoMeta?.assigned_to || null,
-          show_details: item.show_details !== null ? item.show_details : (convoMeta?.show_details ?? null),
-          can_chat: item.can_chat !== null ? item.can_chat : (convoMeta?.can_chat ?? null),
+          assigned_to: item.assigned_to ?? convoMeta?.assigned_to ?? null,
+          show_details: item.show_details != null ? item.show_details : (convoMeta?.show_details ?? null),
+          can_chat: item.can_chat != null ? item.can_chat : (convoMeta?.can_chat ?? null),
         };
       });
     },
-    enabled: true,
+    enabled: !!authUser,
     refetchInterval: 5000,
   });
 
@@ -1394,10 +1469,29 @@ return [];
       activeFilter === "All" ||
       c.name.toLowerCase().includes(activeFilter.toLowerCase());
 
-    // If phone-number filters are active, only include contacts belonging to selected phone numbers
     const matchesTag = !selectedTag || (Array.isArray(c.tags) ? c.tags.map(String).includes(String(selectedTag)) : false);
 
-    return matchesSearch && matchesFilter && matchesTag;
+    // Non-admin: only show contacts explicitly assigned to this user
+    // Use assignment cache (populated when admin assigns) + show_details/can_chat as fallback signal
+    const matchesAssignment = isAdmin
+      ? true
+      : (() => {
+        const dbId = c.dbId;
+        // Check cache first (most reliable) — cache now stores an array of assigned user IDs
+        if (dbId && assignmentCache.has(dbId)) {
+          const assignedIds = assignmentCache.get(dbId) || [];
+          return assignedIds.includes(String(authUser?.id));
+        }
+        // Fall back: if assigned_to is set in contact data
+        if (c.assigned_to && authUser?.id) {
+          return String(c.assigned_to) === String(authUser.id);
+        }
+        // Last resort: contact has explicit permissions — meaning it was assigned to someone
+        // (but we don't know if it's this user — show it until we know for sure)
+        return c.show_details !== null && c.can_chat !== null;
+      })();
+
+    return matchesSearch && matchesFilter && matchesTag && matchesAssignment;
   });
 
   // Reset to page 1 when search query changes
@@ -1410,8 +1504,8 @@ return [];
     const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
     const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
 
-    
-return timeB - timeA;
+
+    return timeB - timeA;
   });
 
   // Calculate pagination
@@ -1588,8 +1682,8 @@ return timeB - timeA;
         const recovered = previousTextByKey.get(key);
 
         if (!recovered) return msg;
-        
-return { ...msg, text: recovered };
+
+        return { ...msg, text: recovered };
       });
     },
     enabled: !!selectedContact,
@@ -1717,8 +1811,8 @@ return { ...msg, text: recovered };
               whatsappMessageId: possibleWamid,
             };
 
-            
-return [...oldMessages, optimisticMessage];
+
+            return [...oldMessages, optimisticMessage];
           },
         );
       }
@@ -1776,8 +1870,8 @@ return [...oldMessages, optimisticMessage];
     const h = Math.floor(remaining / (60 * 60 * 1000));
     const m = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
 
-    
-return {
+
+    return {
       isOpen: true,
       remainingText: `${h}h ${m}m left`,
     };
@@ -1786,8 +1880,8 @@ return {
   useEffect(() => {
     const t = setInterval(() => setWindowTick((n) => n + 1), 60 * 1000);
 
-    
-return () => clearInterval(t);
+
+    return () => clearInterval(t);
   }, []);
 
   // Fetch isWindowOpen from API
@@ -1795,8 +1889,8 @@ return () => clearInterval(t);
     const fetchWindowState = async () => {
       if (!selectedContact || !selectedPhone) {
         setIsWindowOpenFromAPI(true);
-        
-return;
+
+        return;
       }
 
       const token = getConsoleToken();
@@ -1832,8 +1926,8 @@ return;
     fetchWindowState();
     const interval = setInterval(fetchWindowState, 30000);
 
-    
-return () => clearInterval(interval);
+
+    return () => clearInterval(interval);
   }, [selectedContact, selectedPhone]);
 
   useEffect(() => {
@@ -1860,8 +1954,8 @@ return () => clearInterval(interval);
     }
 
     document.addEventListener("mousedown", handleClickOutside);
-    
-return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showAttachMenu]);
 
   /* ---------- Handle file selection ---------- */
@@ -1871,8 +1965,8 @@ return () => document.removeEventListener("mousedown", handleClickOutside);
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
         alert("File size must be less than 10MB");
-        
-return;
+
+        return;
       }
 
       setSelectedFile(file);
@@ -1955,16 +2049,16 @@ return;
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
 
-    
-return `${mins}:${secs.toString().padStart(2, "0")}`;
+
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   /* ---------- Export chat to Excel ---------- */
   const handleExportChat = async () => {
     if (!selectedContact || !selectedPhone) {
       toast.error("Please select a contact and phone number first");
-      
-return;
+
+      return;
     }
 
     const toastId = toast.loading("Fetching messages for export...");
@@ -1986,7 +2080,7 @@ return;
       );
 
       const data = response.data;
-      
+
       let raw: any[] = [];
 
       if (Array.isArray(data?.data?.messages)) raw = data.data.messages;
@@ -2010,8 +2104,8 @@ return;
         });
         setIsExporting(false);
         setIsExportDropdownOpen(false);
-        
-return;
+
+        return;
       }
 
       // Format messages for Excel
@@ -2024,10 +2118,10 @@ return;
             : typeof m?.content?.text === "string"
               ? m.content.text.trim()
               : "";
-        
+
         const isTemplateMessage = resolvedType === "template";
         const text = isTemplateMessage ? "" : (textFromContent || extractMessageText(m));
-        
+
         const direction =
           m.direction === "outbound" || m.direction === "outgoing"
             ? "Outgoing"
@@ -2055,7 +2149,7 @@ return;
       // Dynamically load xlsx library to avoid bundler weight / SSR issue
       const XLSX = await import("xlsx");
       const worksheet = XLSX.utils.json_to_sheet(rows);
-      
+
       // Auto-fit column widths (optional but premium)
       const maxLens = Object.keys(rows[0]).map((key) => {
         let maxLen = key.length;
@@ -2068,8 +2162,8 @@ return;
           }
         }
 
-        
-return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
+
+        return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
       });
 
       worksheet["!cols"] = maxLens;
@@ -2080,7 +2174,7 @@ return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
 
       const filePhone = normalizePhone(selectedContact.phone || "chat");
       const filename = `chat_${filePhone}_${exportTimeFrame}.xlsx`;
-      
+
       XLSX.writeFile(workbook, filename);
 
       toast.update(toastId, {
@@ -2171,8 +2265,8 @@ return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
         setIsSendingMedia(false);
       }
 
-      
-return;
+
+      return;
     }
 
     // Text-only message
@@ -2207,15 +2301,15 @@ return;
     }
 
     document.addEventListener("mousedown", handleClickOutside);
-    
-return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const isFailed = (s?: string) => {
     const normalized = String(s || "").trim().toLowerCase();
 
-    
-return normalized === "failed";
+
+    return normalized === "failed";
   };
 
   const hasFailureSignal = (msg: Message) =>
@@ -2234,15 +2328,15 @@ return normalized === "failed";
       try {
         const parsed = JSON.parse(msg.error);
 
-        
-return parsed?.message || parsed?.error_user_msg || parsed?.error_user_title || msg.error;
+
+        return parsed?.message || parsed?.error_user_msg || parsed?.error_user_title || msg.error;
       } catch {
         return msg.error;
       }
     }
 
-    
-return "Message delivery failed";
+
+    return "Message delivery failed";
   };
 
   const MessageStatus = ({
@@ -2289,8 +2383,8 @@ return "Message delivery failed";
       );
     }
 
-    
-return <Check size={14} className="text-slate-400 ml-0.5" />;
+
+    return <Check size={14} className="text-slate-400 ml-0.5" />;
   };
 
   const getContactReminders = (contactId: number) =>
@@ -2317,16 +2411,16 @@ return <Check size={14} className="text-slate-400 ml-0.5" />;
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className={`font-semibold truncate ${isSelected && contactPermissions && !contactPermissions.show_details ? 'blur-sm select-none' : ''}`}>
+            <p className={`font-semibold truncate ${(!isAdmin && contact.show_details === false) ? 'blur-sm select-none' : ''}`}>
               {contact.name}
             </p>
             {contact.lastMessagePreview && (
-              <p className="text-xs text-gray-600 dark:text-gray-400 truncate w-full">
+              <p className={`text-xs text-gray-600 dark:text-gray-400 truncate w-full ${(!isAdmin && contact.show_details === false) ? 'blur-sm select-none' : ''}`}>
                 {formatPreviewText(contact.lastMessagePreview)}
               </p>
             )}
             {!contact.lastMessagePreview && contact.phone && (
-              <p className={`text-xs text-gray-500 truncate ${isSelected && contactPermissions && !contactPermissions.show_details ? 'blur-sm select-none' : ''}`}>
+              <p className={`text-xs text-gray-500 truncate ${(!isAdmin && contact.show_details === false) ? 'blur-sm select-none' : ''}`}>
                 {contact.phone}
               </p>
             )}
@@ -2335,8 +2429,8 @@ return <Check size={14} className="text-slate-400 ml-0.5" />;
                 {contact.tags.map((tid: any) => {
                   const tagObj = (contactTags as any[]).find((t) => String(t.id) === String(tid));
 
-                  
-return (
+
+                  return (
                     <span key={String(tid)} className="text-[11px] px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
                       {tagObj?.name || String(tid)}
                     </span>
@@ -2734,8 +2828,8 @@ return (
                       const isSelected = selectedPhone === id;
                       const disp = pn.displayPhone || pn.phone_number || pn.number || id;
 
-                      
-return (
+
+                      return (
                         <button
                           key={id}
                           onClick={() => handlePhoneSelect(id)}
@@ -2788,10 +2882,10 @@ return (
               scrollbarColor: '#3b82f6 #f3f4f6'
             }}
           >
-            {loadingContacts && (
+            {(loadingContacts || !authUser) && (
               <p className="p-4 text-blue-600">Loading...</p>
             )}
-            {paginatedContacts.map((c: any) => (
+            {authUser && !loadingContacts && paginatedContacts.map((c: any) => (
               <ContactItem
                 key={c.id}
                 contact={c}
@@ -2887,27 +2981,61 @@ lg:relative lg:flex
                         setIsHeaderUserDropdownOpen(next);
 
                         if (next) {
-                          // Sync pending selection to current assignment when opening
-                          const assignedTo = selectedContact?.assigned_to ?? '';
-
-                          setPendingAssignUserId(assignedTo);
-
-                          if (assignedTo) {
-                            const assignedUser = users.find(u => String(u.id) === String(assignedTo));
-                            const showPermissions = !assignedUser || !assignedUser.role || assignedUser.role.toLowerCase() === 'user';
-                            if (showPermissions) {
-                              setPendingShowDetails(selectedContact?.show_details !== false && (selectedContact?.show_details as any) !== "false");
-                              setPendingCanChat(selectedContact?.can_chat !== false && (selectedContact?.can_chat as any) !== "false");
-                            } else {
-                              setPendingShowDetails(true);
-                              setPendingCanChat(true);
-                            }
-                          } else {
-                            setPendingShowDetails(true);
-                            setPendingCanChat(true);
-                          }
-
                           setHeaderUserSearchQuery('');
+                          setPendingShowDetails(true);
+                          setPendingCanChat(true);
+                          setPendingAssignUserId(undefined);
+                          setDropdownAssignedTo([]);
+                          setDropdownAssignments([]);
+                          setDropdownLoading(true);
+
+                          // Fetch assignment from API every time dropdown opens
+                          if (selectedContact?.dbId) {
+                            api.get(`/admin/contacts/${selectedContact.dbId}/assigned`)
+                              .then((res: any) => {
+                                // res = { success, data: [...], message }  (api.get returns response.data)
+                                const list: any[] = Array.isArray(res?.data)
+                                  ? res.data
+                                  : Array.isArray(res)
+                                    ? res
+                                    : [];
+
+                                if (list.length > 0) {
+                                  // Collect ALL assigned user IDs
+                                  const assignedIds = list.map((a: any) => a.assigned_to ?? a.assignedTo ?? '').filter(Boolean);
+                                  setDropdownAssignedTo(assignedIds);
+                                  setDropdownAssignments(list);
+                                  setAssignmentCache(prev => new Map(prev).set(selectedContact.dbId!, assignedIds));
+                                  // Set first assignment on selectedContact for backward compat
+                                  const a = list[0];
+                                  const assignedTo = a.assigned_to ?? a.assignedTo ?? null;
+                                  setSelectedContact(prev => prev ? {
+                                    ...prev,
+                                    assigned_to: assignedTo || null,
+                                    show_details: a.show_details != null ? Boolean(a.show_details) : prev.show_details,
+                                    can_chat: a.can_chat != null ? Boolean(a.can_chat) : prev.can_chat,
+                                  } : null);
+                                  setPendingAssignUserId(assignedTo);
+                                  if (assignedTo) {
+                                    setPendingShowDetails(a.show_details !== false);
+                                    setPendingCanChat(a.can_chat !== false);
+                                  }
+                                } else {
+                                  setDropdownAssignedTo([]);
+                                  setDropdownAssignments([]);
+                                  setPendingAssignUserId('');
+                                }
+                              })
+                              .catch(() => {
+                                setDropdownAssignedTo([]);
+                                setDropdownAssignments([]);
+                                setPendingAssignUserId('');
+                              })
+                              .finally(() => setDropdownLoading(false));
+                          } else {
+                            setDropdownLoading(false);
+                            setPendingAssignUserId('');
+                          }
                         }
                       }}
                       className={`${iconJumpAnimation} hover:text-blue-600 transition-colors duration-200 flex items-center justify-center`}
@@ -2930,6 +3058,9 @@ lg:relative lg:flex
                         onClick={() => {
                           setIsHeaderUserDropdownOpen(false);
                           setHeaderUserSearchQuery('');
+                          setDropdownAssignedTo([]);
+                          setDropdownAssignments([]);
+                          setDropdownLoading(false);
                         }}
                       />
                     )}
@@ -2942,11 +3073,15 @@ lg:relative lg:flex
                           <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Assign Contact</p>
                           <p className="text-sm font-medium text-gray-800 mt-1">
                             Currently:{' '}
-                            <span className={`font-semibold ${selectedContact?.assigned_to ? 'text-blue-600' : 'text-gray-400'}`}>
-                              {!selectedContact?.assigned_to
-                                ? 'Unassigned'
-                                : users.find(u => String(u.id) === String(selectedContact.assigned_to?.trim()))?.name || 'Unknown'}
-                            </span>
+                            {dropdownLoading ? (
+                              <span className="text-gray-400 font-medium">Loading...</span>
+                            ) : (
+                              <span className={`font-semibold ${dropdownAssignedTo.length > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                                {dropdownAssignedTo.length === 0
+                                  ? 'Unassigned'
+                                  : dropdownAssignedTo.map(id => users.find(u => String(u.id) === String(id.trim()))?.name || id.slice(0, 8) + '...').join(', ')}
+                              </span>
+                            )}
                           </p>
                         </div>
 
@@ -2969,35 +3104,44 @@ lg:relative lg:flex
                         {/* Scrollable User List */}
                         <div className="overflow-y-auto max-h-[320px] py-2">
                           {/* Remove Assignment option — only show if contact is currently assigned */}
-                          {selectedContact?.assigned_to && (
-                            <div
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                setIsHeaderUserDropdownOpen(false);
-                                setHeaderUserSearchQuery('');
-                                await handleRemoveAssignment();
-                              }}
-                              className="flex items-center gap-3 mx-3 px-3 py-2.5 mb-1 rounded-lg cursor-pointer select-none transition-all hover:bg-red-50 border border-transparent hover:border-red-200"
-                            >
-                              <div className="w-5 h-5 rounded-full border-2 border-red-400 flex items-center justify-center flex-shrink-0">
-                                <div className="w-2 h-0.5 bg-red-400 rounded-full" />
-                              </div>
-                              <div>
-                                <span className="text-sm font-semibold text-red-600">Remove Assignment</span>
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                  Currently: {users.find(u => String(u.id) === String(selectedContact.assigned_to?.trim()))?.name || 'Assigned'}
-                                </p>
-                              </div>
-                            </div>
+                          {dropdownAssignedTo.length > 0 && (
+                            <>
+                              {dropdownAssignedTo.map((assignedId) => {
+                                const assignedUser = users.find(u => String(u.id) === String(assignedId.trim()));
+                                const displayName = assignedUser?.name || assignedId.slice(0, 8) + '...';
+                                return (
+                                  <div
+                                    key={assignedId}
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      await handleRemoveAssignment(assignedId);
+                                    }}
+                                    className="flex items-center gap-3 mx-3 px-3 py-2.5 mb-1 rounded-lg cursor-pointer select-none transition-all hover:bg-red-50 border border-transparent hover:border-red-200"
+                                  >
+                                    <div className="w-5 h-5 rounded-full border-2 border-red-400 flex items-center justify-center flex-shrink-0">
+                                      <div className="w-2 h-0.5 bg-red-400 rounded-full" />
+                                    </div>
+                                    <div>
+                                      <span className="text-sm font-semibold text-red-600">Remove Assignment</span>
+                                      <p className="text-xs text-gray-400 mt-0.5">
+                                        Currently: {displayName}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </>
                           )}
 
-                          {selectedContact?.assigned_to && <div className="mx-4 my-2 border-t border-gray-100" />}
+                          {dropdownAssignedTo.length > 0 && <div className="mx-4 my-2 border-t border-gray-100" />}
 
                           {/* Users list */}
                           {users
                             .filter(user =>
-                              user.name?.toLowerCase().includes(headerUserSearchQuery.toLowerCase()) ||
-                              user.email?.toLowerCase().includes(headerUserSearchQuery.toLowerCase())
+                              (!authUser || String(user.id) !== String(authUser.id)) && (
+                                user.name?.toLowerCase().includes(headerUserSearchQuery.toLowerCase()) ||
+                                user.email?.toLowerCase().includes(headerUserSearchQuery.toLowerCase())
+                              )
                             )
                             .map(user => {
                               const isSelected = pendingAssignUserId === String(user.id);
@@ -3014,7 +3158,8 @@ lg:relative lg:flex
                                       setPendingAssignUserId(clickedUserId);
 
                                       const showPermissions = !user.role || user.role.toLowerCase() === 'user';
-                                      if (clickedUserId === String(selectedContact?.assigned_to?.trim())) {
+
+                                      if (dropdownAssignedTo.includes(clickedUserId)) {
                                         if (showPermissions) {
                                           setPendingShowDetails(selectedContact?.show_details !== false && (selectedContact?.show_details as any) !== "false");
                                           setPendingCanChat(selectedContact?.can_chat !== false && (selectedContact?.can_chat as any) !== "false");
@@ -3057,44 +3202,68 @@ lg:relative lg:flex
                                   </div>
 
                                   {/* Options panel — only shown when this user is selected */}
-                                  {isSelected && (!user.role || user.role.toLowerCase() === 'user') && (
+                                  {isSelected && (
                                     <div className="mx-3 mb-3 mt-2 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 shadow-sm" onClick={(e) => e.stopPropagation()}>
-                                      <div className="flex items-center gap-2 mb-3">
-                                        <div className="w-1 h-5 bg-blue-500 rounded-full"></div>
-                                        <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Permissions</p>
-                                      </div>
+                                      {(!user.role || user.role.toLowerCase() === 'user') ? (
+                                        <>
+                                          <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-1 h-5 bg-blue-500 rounded-full"></div>
+                                            <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Permissions</p>
+                                          </div>
 
-                                      {/* Show Details */}
-                                      <div className="mb-3 p-3 bg-white rounded-lg border border-gray-100">
-                                        <p className="text-sm font-semibold text-gray-800 mb-1">Show Details</p>
-                                        <p className="text-xs text-gray-500 mb-2.5">Can view contact name & phone</p>
-                                        <div className="flex gap-2">
-                                          <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${pendingShowDetails ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-blue-300'}`}>
-                                            <input type="radio" name={`show_details_${user.id}`} className="sr-only" checked={pendingShowDetails} onChange={() => setPendingShowDetails(true)} />
-                                            Yes
-                                          </label>
-                                          <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${!pendingShowDetails ? 'bg-red-500 border-red-500 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-red-300'}`}>
-                                            <input type="radio" name={`show_details_${user.id}`} className="sr-only" checked={!pendingShowDetails} onChange={() => setPendingShowDetails(false)} />
-                                            No
-                                          </label>
-                                        </div>
-                                      </div>
+                                          {/* Show Details */}
+                                          <div className="mb-3 p-3 bg-white rounded-lg border border-gray-100">
+                                            <p className="text-sm font-semibold text-gray-800 mb-1">Show Details</p>
+                                            <p className="text-xs text-gray-500 mb-2.5">Can view contact name & phone</p>
+                                            <div className="flex gap-2">
+                                              <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${pendingShowDetails ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-blue-300'}`}>
+                                                <input type="radio" name={`show_details_${user.id}`} className="sr-only" checked={pendingShowDetails} onChange={() => setPendingShowDetails(true)} />
+                                                Yes
+                                              </label>
+                                              <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${!pendingShowDetails ? 'bg-red-500 border-red-500 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-red-300'}`}>
+                                                <input type="radio" name={`show_details_${user.id}`} className="sr-only" checked={!pendingShowDetails} onChange={() => setPendingShowDetails(false)} />
+                                                No
+                                              </label>
+                                            </div>
+                                          </div>
 
-                                      {/* Can Chat */}
-                                      <div className="p-3 bg-white rounded-lg border border-gray-100">
-                                        <p className="text-sm font-semibold text-gray-800 mb-1">Can Chat</p>
-                                        <p className="text-xs text-gray-500 mb-2.5">Can send messages to this contact</p>
-                                        <div className="flex gap-2">
-                                          <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${pendingCanChat ? 'bg-green-600 border-green-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-green-300'}`}>
-                                            <input type="radio" name={`can_chat_${user.id}`} className="sr-only" checked={pendingCanChat} onChange={() => setPendingCanChat(true)} />
-                                            Yes
-                                          </label>
-                                          <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${!pendingCanChat ? 'bg-red-500 border-red-500 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-red-300'}`}>
-                                            <input type="radio" name={`can_chat_${user.id}`} className="sr-only" checked={!pendingCanChat} onChange={() => setPendingCanChat(false)} />
-                                            No
-                                          </label>
+                                          {/* Can Chat */}
+                                          <div className="p-3 bg-white rounded-lg border border-gray-100">
+                                            <p className="text-sm font-semibold text-gray-800 mb-1">Can Chat</p>
+                                            <p className="text-xs text-gray-500 mb-2.5">Can send messages to this contact</p>
+                                            <div className="flex gap-2">
+                                              <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${pendingCanChat ? 'bg-green-600 border-green-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-green-300'}`}>
+                                                <input type="radio" name={`can_chat_${user.id}`} className="sr-only" checked={pendingCanChat} onChange={() => setPendingCanChat(true)} />
+                                                Yes
+                                              </label>
+                                              <label className={`flex-1 flex items-center justify-center py-1.5 rounded-lg border cursor-pointer transition-all font-semibold text-sm ${!pendingCanChat ? 'bg-red-500 border-red-500 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-red-300'}`}>
+                                                <input type="radio" name={`can_chat_${user.id}`} className="sr-only" checked={!pendingCanChat} onChange={() => setPendingCanChat(false)} />
+                                                No
+                                              </label>
+                                            </div>
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <div className="text-xs text-gray-500 font-medium italic">
+                                          Admin has full permissions by default.
                                         </div>
-                                      </div>
+                                      )}
+
+                                      {/* If this user is currently assigned, show a Remove Assignment button */}
+                                      {dropdownAssignedTo.includes(String(user.id)) && (
+                                        <button
+                                          type="button"
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            setIsHeaderUserDropdownOpen(false);
+                                            setHeaderUserSearchQuery('');
+                                            await handleRemoveAssignment(String(user.id));
+                                          }}
+                                          className="w-full mt-4 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                                        >
+                                          Remove Assignment
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -3282,8 +3451,8 @@ lg:relative lg:flex
                   items.push({ type: "message", msg });
                 }
 
-                
-return items.map((item, i) =>
+
+                return items.map((item, i) =>
                   item.type === "date" ? (
                     <div
                       key={`date-${i}-${item.label}`}
@@ -3309,8 +3478,8 @@ return items.map((item, i) =>
 
                       const isOutgoing = isMyMessage(msg);
 
-                      
-return (
+
+                      return (
                         <div
                           key={msg.id}
                           className={`message ${isOutgoing ? "outgoing" : "incoming"} ${failed ? "failed" : ""}`}
@@ -3365,8 +3534,8 @@ return (
                               (() => {
                                 const btnContent = getButtonMessageContent(msg)!;
 
-                                
-return (
+
+                                return (
                                   <>
                                     <div className="template-body">{btnContent.text}</div>
                                     {btnContent.buttons.map((btn: string, i: number) => (
@@ -3792,14 +3961,14 @@ return (
 
                 if (!token) {
                   toast.error("Console token required");
-                  
-return;
+
+                  return;
                 }
 
                 if (!selectedContact?.phone) {
                   toast.error("Contact phone is required");
-                  
-return;
+
+                  return;
                 }
 
                 const resolvedPhoneNumberId = String(
@@ -3808,8 +3977,8 @@ return;
 
                 if (!resolvedPhoneNumberId) {
                   toast.error("Phone number ID is required");
-                  
-return;
+
+                  return;
                 }
 
                 const templateComponents = Array.isArray(templateData?.components)
@@ -3877,8 +4046,8 @@ return;
 
                   console.error("❌ Template error:", errorMsg);
                   toast.error(errorMsg);
-                  
-return;
+
+                  return;
                 }
 
                 queryClient.invalidateQueries({

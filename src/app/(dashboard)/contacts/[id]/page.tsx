@@ -18,11 +18,13 @@ import { Contact, ContactTag } from '@/types';
 
 
 import api from '@/lib/api';
+import { useAuthStore } from '@/store/auth';
 
 export default function ContactDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const { user: authUser } = useAuthStore();
 
   const [contact, setContact] = useState<Contact | null>(null);
   const [tags, setTags] = useState<ContactTag[]>([]);
@@ -296,8 +298,10 @@ export default function ContactDetailPage() {
                         {/* Created Users list filtered by search query */}
                         {users
                           .filter(user =>
-                            user.name?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-                            user.email?.toLowerCase().includes(userSearchQuery.toLowerCase())
+                            (!authUser || String(user.id) !== String(authUser.id)) && (
+                              user.name?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                              user.email?.toLowerCase().includes(userSearchQuery.toLowerCase())
+                            )
                           )
                           .map(user => {
                             const isChecked = formData.assigned_to === String(user.id);

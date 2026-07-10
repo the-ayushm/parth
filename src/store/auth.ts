@@ -57,6 +57,11 @@ export const useAuthStore = create<AuthState>()(
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           localStorage.removeItem('company');
+          localStorage.removeItem('selectedContact');
+          localStorage.removeItem('isHeaderUserDropdownOpen');
+          localStorage.removeItem('pendingAssignUserId');
+          localStorage.removeItem('pendingShowDetails');
+          localStorage.removeItem('pendingCanChat');
         }
 
         set({

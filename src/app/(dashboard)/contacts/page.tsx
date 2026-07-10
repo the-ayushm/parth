@@ -19,10 +19,12 @@ import Toast from '@/components/ui/Toast';
 import Tabs from '@/components/ui/Tabs';
 import { Contact } from '@/types';
 import api from '@/lib/api';
+import { useAuthStore } from '@/store/auth';
 
 export default function ContactsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user: authUser } = useAuthStore();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -671,8 +673,10 @@ return () => {
                       {/* Created Users list filtered by search query */}
                       {users
                         .filter(user =>
-                          user.name?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-                          user.email?.toLowerCase().includes(userSearchQuery.toLowerCase())
+                          (!authUser || String(user.id) !== String(authUser.id)) && (
+                            user.name?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                            user.email?.toLowerCase().includes(userSearchQuery.toLowerCase())
+                          )
                         )
                         .map(user => {
                           const isChecked = selectedAssignUserId === user.id;
