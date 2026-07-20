@@ -57,6 +57,7 @@ import {
 
 import { useSocket } from "@/hooks/useSocket";
 import api from "@/lib/api";
+import * as XLSX from "xlsx";
 
 /* ---------- Types ---------- */
 interface Contact {
@@ -743,6 +744,8 @@ export default function InboxPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportTimeFrame, setExportTimeFrame] = useState("7days");
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+  const [isExportAllDropdownOpen, setIsExportAllDropdownOpen] = useState(false);
+  const [exportAllTimeFrame, setExportAllTimeFrame] = useState("7days");
   const [showPhoneDropdown, setShowPhoneDropdown] = useState(false);
   const [isExportingAll, setIsExportingAll] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -2180,8 +2183,6 @@ export default function InboxPage() {
         };
       });
 
-      // Dynamically load xlsx library to avoid bundler weight / SSR issue
-      const XLSX = await import("xlsx");
       const worksheet = XLSX.utils.json_to_sheet(rows);
 
       // Auto-fit column widths (optional but premium)
@@ -2241,15 +2242,24 @@ export default function InboxPage() {
 
     const toastId = toast.loading("Fetching all inbox chats for export...");
     setIsExportingAll(true);
+    setIsExportAllDropdownOpen(false);
 
     try {
-      const response = await api.get("/admin/messages", {
-        params: {
-          phone_number_id: selectedPhone,
-          limit: 100000,
-          sort_order: "asc"
-        }
-      });
+      const params: any = {
+        phone_number_id: selectedPhone,
+        limit: 100000,
+        sort_order: "asc"
+      };
+
+      if (exportAllTimeFrame && exportAllTimeFrame !== "all") {
+        const days = exportAllTimeFrame === "7days" ? 7 : exportAllTimeFrame === "15days" ? 15 : 30;
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - days);
+        fromDate.setHours(0, 0, 0, 0); // Start of that day
+        params.from_date = fromDate.toISOString();
+      }
+
+      const response = await api.get("/admin/messages", { params });
 
       const messagesData = response.data?.data || [];
 
@@ -2335,8 +2345,6 @@ export default function InboxPage() {
         };
       });
 
-      // Dynamically load xlsx library
-      const XLSX = await import("xlsx");
       const worksheet = XLSX.utils.json_to_sheet(rows);
 
       // Auto-fit column widths
@@ -2356,7 +2364,7 @@ export default function InboxPage() {
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "All Inbox Chats");
 
-      const filename = `all_inbox_chats_${selectedPhone}.xlsx`;
+      const filename = `all_inbox_chats_${selectedPhone}_${exportAllTimeFrame}.xlsx`;
       XLSX.writeFile(workbook, filename);
 
       toast.update(toastId, {
@@ -3054,14 +3062,83 @@ export default function InboxPage() {
                 </div>
 
                 {/* Download All Chats Button */}
-                <button
-                  onClick={handleExportAllChats}
-                  disabled={isExportingAll}
-                  className={`p-2 rounded-lg bg-white border border-gray-200 text-blue-600 hover:bg-gray-50 transition-all ${isExportingAll ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  title="Download all chats as Excel"
-                >
-                  <Download size={18} className={isExportingAll ? 'animate-bounce' : ''} />
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsExportAllDropdownOpen(!isExportAllDropdownOpen)}
+                    disabled={isExportingAll}
+                    className={`p-2 rounded-lg bg-white border border-gray-200 text-blue-600 hover:bg-gray-50 transition-all ${isExportingAll ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title="Download all chats as Excel"
+                  >
+                    <Download size={18} className={isExportingAll ? 'animate-bounce' : ''} />
+                  </button>
+
+                  {/* Click-away backdrop overlay */}
+                  {isExportAllDropdownOpen && (
+                    <div
+                      className="fixed inset-0 z-50 cursor-default"
+                      onClick={() => setIsExportAllDropdownOpen(false)}
+                    />
+                  )}
+
+                  {/* Popover Menu content */}
+                  {isExportAllDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-[300px] rounded-xl shadow-2xl bg-white text-gray-900 border border-gray-200 z-[80] flex flex-col overflow-hidden">
+                      {/* Header */}
+                      <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Export All Chats</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Export all conversation history to Excel</p>
+                      </div>
+
+                      {/* Options */}
+                      <div className="p-4 space-y-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">
+                            Select Time Frame
+                          </label>
+                          <select
+                            value={exportAllTimeFrame}
+                            onChange={(e) => setExportAllTimeFrame(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-gray-700"
+                          >
+                            <option value="7days">Last 7 Days</option>
+                            <option value="15days">Last 15 Days</option>
+                            <option value="30days">Last 30 Days</option>
+                            <option value="all">All Time</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsExportAllDropdownOpen(false)}
+                          className="flex-1 py-2 text-xs text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isExportingAll}
+                          onClick={handleExportAllChats}
+                          className="flex-1 py-2 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-55 disabled:cursor-not-allowed transition-colors font-semibold flex items-center justify-center gap-1.5"
+                        >
+                          {isExportingAll ? (
+                            <>
+                              <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                              </svg>
+                              <span>Exporting...</span>
+                            </>
+                          ) : (
+                            <span>Export</span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
