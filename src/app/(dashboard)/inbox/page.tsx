@@ -201,6 +201,40 @@ const formatPreviewText = (text: string): string => {
   return text;
 };
 
+const getMediaUrl = (m: any): string | null => {
+  if (!m) return null;
+  return (
+    m.mediaUrl ||
+    m.media_url ||
+    m.content?.media_url ||
+    m.content?.url ||
+    m.content?.image?.link ||
+    m.content?.image?.url ||
+    m.content?.video?.link ||
+    m.content?.video?.url ||
+    m.content?.audio?.link ||
+    m.content?.audio?.url ||
+    m.content?.document?.link ||
+    m.content?.document?.url ||
+    m.content?.sticker?.link ||
+    null
+  );
+};
+
+const getMediaType = (m: any): string | null => {
+  if (!m) return null;
+  return (
+    m.mediaType ||
+    m.media_type ||
+    m.content?.image?.mime_type ||
+    m.content?.video?.mime_type ||
+    m.content?.audio?.mime_type ||
+    m.content?.document?.mime_type ||
+    m.content?.sticker?.mime_type ||
+    null
+  );
+};
+
 const extractMessageText = (message: any): string => {
   if (!message) return "";
 
@@ -709,6 +743,8 @@ export default function InboxPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportTimeFrame, setExportTimeFrame] = useState("7days");
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+  const [showPhoneDropdown, setShowPhoneDropdown] = useState(false);
+  const [isExportingAll, setIsExportingAll] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1605,8 +1641,8 @@ export default function InboxPage() {
           status: m.status || "",
           createdAt: m.createdAt || m.created_at || m.timestamp || new Date().toISOString(),
           type: resolvedType,
-          mediaUrl: m.mediaUrl || m.media_url || m.content?.media_url || m.content?.url || null,
-          mediaType: m.mediaType || m.media_type || null,
+          mediaUrl: getMediaUrl(m),
+          mediaType: getMediaType(m),
           messageType: resolvedType || null,
           whatsappMessageId: m.wamid || m.whatsappMessageId || null,
           isTemplate: isTemplateMessage,
@@ -1771,18 +1807,16 @@ export default function InboxPage() {
 
       const response = await api.post("/admin/messages/send", apiPayload);
 
-      const data = response.data;
-
-      if (!response.status.toString().startsWith("2")) {
+      if (!response?.success) {
         const error: any = new Error(
-          data?.message || data?.error || "Failed to send message",
+          response?.message || response?.error || "Failed to send message",
         );
 
-        error.response = { data };
+        error.response = { data: response };
         throw error;
       }
 
-      return data;
+      return response.data;
     },
     onSuccess: (response: any, variables: any) => {
       const outgoingText =
@@ -2138,7 +2172,7 @@ export default function InboxPage() {
           "Message Type": resolvedType,
           "Text Content": text,
           "Status": m.status || "sent",
-          "Media URL": m.mediaUrl || m.media_url || m.content?.media_url || m.content?.url || "",
+          "Media URL": getMediaUrl(m) || "",
           "Template Name": m.templateName || m.template_name || m.content?.template?.name || "",
           "Date & Time": readableTime,
           "Error Code": m.errorCode || m.error_code || "",
@@ -2198,6 +2232,152 @@ export default function InboxPage() {
     }
   };
 
+  /* ---------- Export all inbox chats to Excel ---------- */
+  const handleExportAllChats = async () => {
+    if (!selectedPhone) {
+      toast.error("Please select a phone number first");
+      return;
+    }
+
+    const toastId = toast.loading("Fetching all inbox chats for export...");
+    setIsExportingAll(true);
+
+    try {
+      const response = await api.get("/admin/messages", {
+        params: {
+          phone_number_id: selectedPhone,
+          limit: 100000,
+          sort_order: "asc"
+        }
+      });
+
+      const messagesData = response.data?.data || [];
+
+      if (messagesData.length === 0) {
+        toast.update(toastId, {
+          render: "⚠️ No messages found to export.",
+          type: "warning",
+          isLoading: false,
+          autoClose: 3000,
+        });
+        setIsExportingAll(false);
+        return;
+      }
+
+      // Pre-build a map from phone to contact name for fast lookups
+      const contactMap = new Map<string, string>();
+      if (Array.isArray(contacts)) {
+        contacts.forEach((c: any) => {
+          if (c.phone) {
+            contactMap.set(normalizePhone(c.phone), c.name);
+          }
+        });
+      }
+
+      const getContactInfo = (rawPhone: string) => {
+        const cleanPhone = normalizePhone(rawPhone);
+        if (!cleanPhone) return { phone: "", name: "Unknown" };
+        const last10 = cleanPhone.slice(-10);
+
+        // Try direct lookup
+        let name = contactMap.get(cleanPhone);
+        if (name) return { phone: cleanPhone, name };
+
+        // Suffix match
+        const found = contacts.find((c: any) => {
+          const cClean = normalizePhone(c.phone);
+          return cClean === cleanPhone || (cClean.length >= 10 && cClean.endsWith(last10));
+        });
+
+        return {
+          phone: cleanPhone,
+          name: found ? found.name : cleanPhone
+        };
+      };
+
+      // Format messages for Excel
+      const rows = messagesData.map((m: any) => {
+        const resolvedType = String(m.type || m.content?.type || "text").toLowerCase();
+
+        const textFromContent =
+          typeof m?.content === "string"
+            ? m.content.trim()
+            : typeof m?.content?.text === "string"
+              ? m.content.text.trim()
+              : "";
+
+        const isTemplateMessage = resolvedType === "template";
+        const text = isTemplateMessage ? "" : (textFromContent || extractMessageText(m));
+
+        const direction =
+          m.direction === "outbound" || m.direction === "outgoing"
+            ? "Outgoing"
+            : "Incoming";
+
+        const rawContactPhone = direction === "Incoming" ? m.from_phone : m.to_phone;
+        const contactInfo = getContactInfo(rawContactPhone);
+
+        const createdAt = m.createdAt || m.created_at || m.timestamp || new Date().toISOString();
+        const readableTime = new Date(createdAt).toLocaleString();
+
+        return {
+          "Contact Name": contactInfo.name,
+          "Contact Phone": contactInfo.phone,
+          "Sender Type": direction,
+          "Message Type": resolvedType,
+          "Text Content": text,
+          "Status": m.status || "sent",
+          "Media URL": getMediaUrl(m) || "",
+          "Template Name": m.templateName || m.template_name || m.content?.template?.name || "",
+          "Date & Time": readableTime,
+          "Error Code": m.errorCode || m.error_code || "",
+          "Error Message": m.error_message || m.errorMessage || m.error || "",
+        };
+      });
+
+      // Dynamically load xlsx library
+      const XLSX = await import("xlsx");
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+
+      // Auto-fit column widths
+      const maxLens = Object.keys(rows[0]).map((key) => {
+        let maxLen = key.length;
+        for (const row of rows) {
+          const val = String((row as any)[key] || "");
+          if (val.length > maxLen) {
+            maxLen = val.length;
+          }
+        }
+        return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
+      });
+
+      worksheet["!cols"] = maxLens;
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "All Inbox Chats");
+
+      const filename = `all_inbox_chats_${selectedPhone}.xlsx`;
+      XLSX.writeFile(workbook, filename);
+
+      toast.update(toastId, {
+        render: "✅ All inbox chats exported successfully!",
+        type: "success",
+        isLoading: false,
+        autoClose: 3000,
+      });
+    } catch (err: any) {
+      console.error("All export failed:", err);
+      toast.update(toastId, {
+        render: err.message || "Failed to export all chats",
+        type: "error",
+        isLoading: false,
+        autoClose: 3000,
+      });
+    } finally {
+      setIsExportingAll(false);
+    }
+  };
+
   /* ---------- Send message ---------- */
   const handleSend = async () => {
     if (!selectedContact) return;
@@ -2213,58 +2393,108 @@ export default function InboxPage() {
     if (selectedFile || audioBlob || selectedGalleryMedia) {
       setIsSendingMedia(true);
 
+      const isImage = !!(selectedFile && (
+        selectedFile.type.startsWith("image/") ||
+        /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(selectedFile.name)
+      ));
+
       try {
-        const formData = new FormData();
+        if (isImage) {
+          // Step 1: Upload the Image
+          const uploadFormData = new FormData();
+          uploadFormData.append("file", selectedFile);
 
-        formData.append("to", normalizePhone(selectedContact.phone || ""));
-        formData.append("phone_number_id", outboundPhoneNumberId);
-
-        if (messageValue.trim()) {
-          formData.append("caption", messageValue.trim());
-        }
-
-        if (selectedGalleryMedia) {
-          formData.append("galleryMediaId", selectedGalleryMedia.id.toString());
-        } else if (selectedFile) {
-          formData.append("file", selectedFile);
-        } else if (audioBlob) {
-          const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, {
-            type: "audio/webm",
+          const uploadRes = await api.post("/auth/media", uploadFormData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
           });
 
-          formData.append("file", audioFile);
-        }
+          if (!uploadRes || !uploadRes.success || !uploadRes.media_url) {
+            throw new Error(uploadRes?.message || "Failed to upload image to media server");
+          }
 
-        const token = getConsoleToken();
+          const mediaUrl = uploadRes.media_url;
 
-        const response = await api.post(
-          "/admin/messages/send",
-          formData
-        );
+          // Step 2: Send the WhatsApp Image Message
+          const payload: any = {
+            messaging_product: "whatsapp",
+            phone_number_id: outboundPhoneNumberId,
+            to: normalizePhone(selectedContact.phone || ""),
+            type: "image",
+            image: {
+              link: mediaUrl,
+            },
+          };
 
-        const data = await response.json();
+          if (messageValue.trim()) {
+            payload.image.caption = messageValue.trim();
+          }
 
-        if (data.success) {
-          toast.success("Media sent successfully!");
-          queryClient.invalidateQueries({
-            queryKey: ["messages", selectedContact.id],
-          });
-          queryClient.invalidateQueries({ queryKey: ["contacts"] });
-          reset();
-          setSelectedFile(null);
-          setAudioBlob(null);
-          setRecordingTime(0);
-          setSelectedGalleryMedia(null);
+          const data = await api.post("/admin/messages/send", payload);
+
+          if (data.success) {
+            toast.success("Image sent successfully!");
+            queryClient.invalidateQueries({
+              queryKey: ["messages", selectedContact.id],
+            });
+            queryClient.invalidateQueries({ queryKey: ["contacts"] });
+            reset();
+            setSelectedFile(null);
+            setAudioBlob(null);
+            setRecordingTime(0);
+            setSelectedGalleryMedia(null);
+          } else {
+            toast.error(data.message || "Failed to send image");
+          }
         } else {
-          toast.error(data.message || "Failed to send media");
+          // Fallback to original form-data payload for other media types (documents, audio, etc.)
+          const formData = new FormData();
+          formData.append("to", normalizePhone(selectedContact.phone || ""));
+          formData.append("phone_number_id", outboundPhoneNumberId);
+
+          if (messageValue.trim()) {
+            formData.append("caption", messageValue.trim());
+          }
+
+          if (selectedGalleryMedia) {
+            formData.append("galleryMediaId", selectedGalleryMedia.id.toString());
+          } else if (selectedFile) {
+            formData.append("file", selectedFile);
+          } else if (audioBlob) {
+            const audioFile = new File([audioBlob], `voice_${Date.now()}.webm`, {
+              type: "audio/webm",
+            });
+            formData.append("file", audioFile);
+          }
+
+          const data = await api.post("/admin/messages/send", formData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          });
+
+          if (data.success) {
+            toast.success("Media sent successfully!");
+            queryClient.invalidateQueries({
+              queryKey: ["messages", selectedContact.id],
+            });
+            queryClient.invalidateQueries({ queryKey: ["contacts"] });
+            reset();
+            setSelectedFile(null);
+            setAudioBlob(null);
+            setRecordingTime(0);
+            setSelectedGalleryMedia(null);
+          } else {
+            toast.error(data.message || "Failed to send media");
+          }
         }
       } catch (error: any) {
         console.error("Failed to send media:", error);
-        toast.error(error?.response?.data?.message || "Failed to send media");
+        toast.error(error?.response?.data?.message || error?.message || "Failed to send media");
       } finally {
         setIsSendingMedia(false);
       }
-
 
       return;
     }
@@ -2783,65 +3013,56 @@ export default function InboxPage() {
                 />
               </div>
 
-              {/* Filter button */}
+              {/* Actions: Select Phone & Download All Chats */}
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowFilterMenu((s) => !s)}
-                  className="p-2 rounded-lg bg-white border border-gray-200 text-blue-600 hover:bg-gray-50"
-                  title="Filter conversations"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5h18M6 12h12M10 19h4" />
-                  </svg>
-                </button>
+                {/* Select Phone Button */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowPhoneDropdown((s) => !s)}
+                    className="p-2 rounded-lg bg-white border border-gray-200 text-blue-600 hover:bg-gray-50"
+                    title="Select phone number"
+                  >
+                    <Phone size={18} />
+                  </button>
 
-                <button className="p-2 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50" title="Contacts">
-                  <Users size={18} />
+                  {/* Phone Dropdown */}
+                  {showPhoneDropdown && (
+                    <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-[110] p-3">
+                      <div className="text-sm font-semibold text-gray-700 mb-2">Select Phone Number</div>
+                      <div className="space-y-1 max-h-48 overflow-auto">
+                        {phoneNumbers.map((pn: any) => {
+                          const id = String(pn.phoneNumberId || pn.id || pn.displayPhone || pn.phone_number);
+                          const isSelected = selectedPhone === id;
+                          const disp = pn.displayPhone || pn.phone_number || pn.number || id;
+
+                          return (
+                            <button
+                              key={id}
+                              onClick={() => {
+                                handlePhoneSelect(id);
+                                setShowPhoneDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-700'}`}
+                            >
+                              {disp}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Download All Chats Button */}
+                <button
+                  onClick={handleExportAllChats}
+                  disabled={isExportingAll}
+                  className={`p-2 rounded-lg bg-white border border-gray-200 text-blue-600 hover:bg-gray-50 transition-all ${isExportingAll ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title="Download all chats as Excel"
+                >
+                  <Download size={18} className={isExportingAll ? 'animate-bounce' : ''} />
                 </button>
               </div>
-
-              {/* Filter dropdown */}
-              {showFilterMenu && (
-                <div className="filter-dropdown absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-[100] p-3">
-                  <div className="text-sm font-semibold text-gray-700 mb-2">Filter Conversations</div>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-blue-600">
-                      <input type="checkbox" className="rounded" />
-                      <span>Unread</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-blue-600">
-                      <input type="checkbox" className="rounded" />
-                      <span>Assigned</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-blue-600">
-                      <input type="checkbox" className="rounded" />
-                      <span>Unassigned</span>
-                    </label>
-                  </div>
-
-                  <div className="border-t border-gray-100 my-3" />
-
-                  <div className="text-sm font-medium text-gray-700 mb-2">Select Phone Number</div>
-                  <div className="space-y-1 max-h-48 overflow-auto">
-                    {phoneNumbers.map((pn: any) => {
-                      const id = String(pn.phoneNumberId || pn.id || pn.displayPhone || pn.phone_number);
-                      const isSelected = selectedPhone === id;
-                      const disp = pn.displayPhone || pn.phone_number || pn.number || id;
-
-
-                      return (
-                        <button
-                          key={id}
-                          onClick={() => handlePhoneSelect(id)}
-                          className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-700'}`}
-                        >
-                          {disp}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="mt-2 flex items-center justify-between">
@@ -4030,19 +4251,18 @@ lg:relative lg:flex
                 // Call EXTERNAL API via api
                 const response = await api.post("/admin/messages/send", payload);
 
-                const data = response.data;
+                const data = response?.data;
 
                 console.log("📥 API Response:", {
-                  status: response.status,
-                  ok: response.status.toString().startsWith("2"),
+                  success: response?.success,
                   data,
                 });
 
-                if (!response.status.toString().startsWith("2")) {
+                if (!response?.success) {
                   const errorMsg =
-                    data?.error ||
-                    data?.message ||
-                    `Failed to send template (${response.status})`;
+                    response?.error ||
+                    response?.message ||
+                    "Failed to send template";
 
                   console.error("❌ Template error:", errorMsg);
                   toast.error(errorMsg);
